@@ -14,10 +14,7 @@ class NeuralLayer:
         self.input_size = input_size
         self.output_size = output_size
 
-        if activation is None:
-            self.activation = None
-        else:
-            self.activation = get_activation(activation)
+        self.activation = None if activation is None else get_activation(activation)
 
         self.W, self.b = self._initialize_parameters(weight_init)
 
@@ -72,12 +69,14 @@ class NeuralLayer:
             da_dz = self.activation.backward(z)
             dL_dz = dL_da * da_dz
 
-        self.grad_W = np.dot(X.T, dL_dz)
+        batch_size = X.shape[0]
+
+        self.grad_W = np.dot(X.T, dL_dz) / batch_size
 
         if weight_decay > 0:
-            self.grad_W += weight_decay * self.W
+            self.grad_W += (weight_decay / batch_size) * self.W
 
-        self.grad_b = np.sum(dL_dz, axis=0, keepdims=True)
+        self.grad_b = np.sum(dL_dz, axis=0, keepdims=True) / batch_size
 
         dL_dX = np.dot(dL_dz, self.W.T)
 
