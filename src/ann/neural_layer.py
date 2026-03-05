@@ -9,12 +9,15 @@ from .activations import get_activation
 
 class NeuralLayer:
 
-    def __init__(self, input_size, output_size, activation="relu", weight_init="xavier"):
+    def __init__(self, input_size, output_size, activation=None, weight_init="xavier"):
 
         self.input_size = input_size
         self.output_size = output_size
 
-        self.activation = get_activation(activation)
+        if activation is None:
+            self.activation = None
+        else:
+            self.activation = get_activation(activation)
 
         self.W, self.b = self._initialize_parameters(weight_init)
 
@@ -49,7 +52,10 @@ class NeuralLayer:
         z = np.dot(X, self.W) + self.b
         self.cache["z"] = z
 
-        a = self.activation.forward(z)
+        if self.activation is None:
+            a = z
+        else:
+            a = self.activation.forward(z)
 
         self.cache["a"] = a
 
@@ -60,9 +66,11 @@ class NeuralLayer:
         X = self.cache["X"]
         z = self.cache["z"]
 
-        da_dz = self.activation.backward(z)
-
-        dL_dz = dL_da * da_dz
+        if self.activation is None:
+            dL_dz = dL_da
+        else:
+            da_dz = self.activation.backward(z)
+            dL_dz = dL_da * da_dz
 
         self.grad_W = np.dot(X.T, dL_dz)
 

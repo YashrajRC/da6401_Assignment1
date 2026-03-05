@@ -10,20 +10,12 @@ from .optimizers import get_optimizer
 
 
 class NeuralNetwork:
-    """
-    Main model class that orchestrates the neural network training and inference.
-    """
 
     def __init__(self, cli_args):
-        """
-        Initialize network based on CLI arguments
-        """
 
-        # Core configuration
         self.input_size = 784
         self.output_size = 10
 
-        # Safe CLI handling (autograder may omit fields)
         self.num_layers = getattr(cli_args, "num_layers", 1)
         self.hidden_sizes = getattr(cli_args, "hidden_size", [128])
 
@@ -41,8 +33,8 @@ class NeuralNetwork:
         optimizer_name = getattr(cli_args, "optimizer", "sgd")
         learning_rate = getattr(cli_args, "learning_rate", 0.01)
 
-        # Build layers
         self.layers = []
+
         layer_sizes = [self.input_size] + self.hidden_sizes + [self.output_size]
 
         for i in range(len(layer_sizes) - 1):
@@ -50,7 +42,7 @@ class NeuralNetwork:
             if i < len(layer_sizes) - 2:
                 activation = self.activation
             else:
-                activation = "relu"  # dummy activation (not used)
+                activation = None
 
             layer = NeuralLayer(
                 layer_sizes[i],
@@ -61,7 +53,6 @@ class NeuralNetwork:
 
             self.layers.append(layer)
 
-        # Loss and optimizer
         self.loss_function = get_loss_function(loss_name)
         self.optimizer = get_optimizer(optimizer_name, learning_rate)
 
@@ -69,67 +60,39 @@ class NeuralNetwork:
         self.grad_b = None
 
     def forward(self, X):
-        """
-        Forward propagation
-        Returns logits (no softmax)
-        """
 
         output = X
 
-        for i in range(len(self.layers) - 1):
-            output = self.layers[i].forward(output)
+        for layer in self.layers:
+            output = layer.forward(output)
 
-        last_layer = self.layers[-1]
+        return output
 
-        last_layer.cache["X"] = output
-        logits = np.dot(output, last_layer.W) + last_layer.b
-        last_layer.cache["z"] = logits
-        last_layer.cache["a"] = logits
-
-        return logits
-
-    def backward(self, y_true, y_pred):
-        """
-        Backward propagation
-        """
+    def backward(self, y_true, logits):
 
         grad_W_list = []
         grad_b_list = []
 
-        dL_dlogits = self.loss_function.compute_gradient(y_pred, y_true)
+        dL_dlogits = self.loss_function.compute_gradient(logits, y_true)
 
-        last_layer = self.layers[-1]
-        X_last = last_layer.cache["X"]
+        dL_dX = dL_dlogits
 
-        last_layer.grad_W = np.dot(X_last.T, dL_dlogits)
+        for layer in reversed(self.layers):
 
-        if self.weight_decay > 0:
-            last_layer.grad_W += self.weight_decay * last_layer.W
+            dL_dX = layer.backward(dL_dX, self.weight_decay)
 
-        last_layer.grad_b = np.sum(dL_dlogits, axis=0, keepdims=True)
+        for layer in reversed(self.layers):
 
-        grad_W_list.append(last_layer.grad_W)
-        grad_b_list.append(last_layer.grad_b)
+            grad_W_list.append(layer.grad_W)
+            grad_b_list.append(layer.grad_b)
 
-        dL_dX = np.dot(dL_dlogits, last_layer.W.T)
-
-        for i in range(len(self.layers) - 2, -1, -1):
-
-            dL_dX = self.layers[i].backward(dL_dX, self.weight_decay)
-
-            grad_W_list.append(self.layers[i].grad_W)
-            grad_b_list.append(self.layers[i].grad_b)
-
-        self.grad_W = np.empty(len(grad_W_list), dtype=object)
-        self.grad_b = np.empty(len(grad_b_list), dtype=object)
-
-        for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
-            self.grad_W[i] = gw
-            self.grad_b[i] = gb
+        self.grad_W = np.array(grad_W_list, dtype=object)
+        self.grad_b = np.array(grad_b_list, dtype=object)
 
         return self.grad_W, self.grad_b
 
     def update_weights(self):
+
         self.optimizer.update(self.layers)
 
     def train_epoch(self, X_train, y_train, batch_size=32):
@@ -160,6 +123,7 @@ class NeuralNetwork:
             correct += np.sum(predictions == targets)
 
             self.backward(y_batch, logits)
+
             self.update_weights()
 
             num_batches += 1
@@ -172,6 +136,7 @@ class NeuralNetwork:
     def evaluate(self, X, y):
 
         logits = self.forward(X)
+
         loss = self.loss_function.compute_loss(logits, y)
 
         predictions = np.argmax(logits, axis=1)
@@ -186,6 +151,7 @@ class NeuralNetwork:
         d = {}
 
         for i, layer in enumerate(self.layers):
+
             d[f"W{i}"] = layer.W.copy()
             d[f"b{i}"] = layer.b.copy()
 
