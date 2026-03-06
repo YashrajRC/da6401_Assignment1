@@ -144,15 +144,23 @@ def main():
     print("Test Recall:", test_recall)
 
     # Save model
-    np.save(args.model_save_path, best_weights)
-    print(f"Model saved to {args.model_save_path}")
+    # Ensure src directory exists
+    save_dir = "src"
+    os.makedirs(save_dir, exist_ok=True)
+
+    model_path = os.path.join(save_dir, args.model_save_path)
+    config_path = os.path.join(save_dir, args.config_save_path)
+
+    # Save model
+    np.save(model_path, best_weights)
+    print(f"Model saved to {model_path}")
 
     # Save config
     config = vars(args)
     config['test_f1'] = float(test_f1)
     config['test_accuracy'] = float(test_acc)
 
-    with open(args.config_save_path, "w") as f:
+    with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
 
     print("Training complete!")
