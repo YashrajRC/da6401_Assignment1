@@ -51,11 +51,11 @@ def parse_arguments():
                         help="Optimizer")
 
     parser.add_argument("-lr", "--learning_rate", type=float,
-                        default=0.01,
+                        default=0.001,
                         help="Learning rate")
 
     parser.add_argument("-wd", "--weight_decay", type=float,
-                        default=0.0,
+                        default=0.0001,
                         help="Weight decay")
 
     parser.add_argument("-b", "--batch_size", type=int,
@@ -63,7 +63,7 @@ def parse_arguments():
                         help="Batch size")
 
     parser.add_argument("-e", "--epochs", type=int,
-                        default=10,
+                        default=20,
                         help="Number of epochs")
 
     parser.add_argument("-w_i", "--weight_init", type=str,

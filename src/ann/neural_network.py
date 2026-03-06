@@ -16,14 +16,29 @@ class NeuralNetwork:
         self.input_size = getattr(cli_args, "input_size", 784)
         self.output_size = getattr(cli_args, "output_size", 10)
 
-        self.num_layers = getattr(cli_args, "num_layers", 1)
-        self.hidden_sizes = getattr(cli_args, "hidden_size", [128])
+        self.num_layers = getattr(cli_args, "num_layers", 3)
+        self.hidden_sizes = getattr(cli_args, "hidden_size", [128, 64, 32])
 
         if isinstance(self.hidden_sizes, int):
             self.hidden_sizes = [self.hidden_sizes]
 
+        # Handle edge case: if num_layers=0, ensure hidden_sizes is empty
+        if self.num_layers == 0:
+            self.hidden_sizes = []
+        
+        # Validate hidden layer configuration
         if len(self.hidden_sizes) != self.num_layers:
-            raise ValueError("Length of hidden_size must match num_layers")
+            # Flexible handling: adjust to match num_layers
+            if len(self.hidden_sizes) < self.num_layers:
+                # Repeat last size if not enough
+                if len(self.hidden_sizes) > 0:
+                    last_size = self.hidden_sizes[-1]
+                    self.hidden_sizes = self.hidden_sizes + [last_size] * (self.num_layers - len(self.hidden_sizes))
+                else:
+                    self.hidden_sizes = [128] * self.num_layers
+            else:
+                # Truncate if too many
+                self.hidden_sizes = self.hidden_sizes[:self.num_layers]
 
         self.activation = getattr(cli_args, "activation", "relu")
         self.weight_init = getattr(cli_args, "weight_init", "xavier")
