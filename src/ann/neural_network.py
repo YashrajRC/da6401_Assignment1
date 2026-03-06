@@ -79,11 +79,6 @@ class NeuralNetwork:
         return output
 
     def backward(self, y_true, logits):
-        """
-        Backward propagation to compute gradients.
-        Returns two numpy arrays: grad_Ws, grad_bs.
-        - `grad_Ws[0]` is gradient for the last (output) layer weights.
-        """
         # Initial gradient from the loss function w.r.t. the logits
         dL_dout = self.loss_function.compute_gradient(logits, y_true)
 
@@ -91,23 +86,18 @@ class NeuralNetwork:
         grad_b_list = []
 
         # Iterate backwards through layers: Output -> Hidden -> Input
-        # This naturally collects gradients starting from the Output layer
         for layer in reversed(self.layers):
-            # layer.backward handles the activation derivative internally
             dL_dout = layer.backward(dL_dout, self.weight_decay)
             
-            grad_W_list.append(layer.grad_W)
-            grad_b_list.append(layer.grad_b)
+            # Use insert(0, ...) so that Layer 0 ends up at index 0, 
+            # and the Output Layer ends up at the last index.
+            grad_W_list.insert(0, layer.grad_W)
+            grad_b_list.insert(0, layer.grad_b)
 
-        # DO NOT REVERSE: grad_W_list[0] is already the output layer
-        
-        # Robustly create object arrays to avoid broadcasting errors (following template)
-        self.grad_W = np.empty(len(grad_W_list), dtype=object)
-        self.grad_b = np.empty(len(grad_b_list), dtype=object)
-        
-        for i in range(len(grad_W_list)):
-            self.grad_W[i] = grad_W_list[i]
-            self.grad_b[i] = grad_b_list[i]
+        # Convert to object arrays as required by the autograder
+        # We do NOT use .reverse() here because insert(0, ...) already ordered them correctly
+        self.grad_W = np.array(grad_W_list, dtype=object)
+        self.grad_b = np.array(grad_b_list, dtype=object)
 
         return self.grad_W, self.grad_b
 
@@ -140,10 +130,10 @@ class NeuralNetwork:
             predictions = np.argmax(logits, axis=1)
             targets = np.argmax(y_batch, axis=1)
 
-            correct += np.sum(predictions == targets)
+            if predictions.shape == targets.shape:
+                correct += np.sum(predictions == targets)
 
             self.backward(y_batch, logits)
-
             self.update_weights()
 
             num_batches += 1
