@@ -59,22 +59,27 @@ class NeuralLayer:
         return a
 
     def backward(self, dL_da, weight_decay=0.0):
-
+        """
+        dL_da: Gradient of loss w.r.t. output of this layer (from the next layer)
+        """
         X = self.cache["X"]
         z = self.cache["z"]
 
+        # 1. Compute dL/dz (Chain Rule: dL/da * da/dz)
         if self.activation is None:
             dL_dz = dL_da
         else:
-            da_dz = self.activation.backward(z)
-            dL_dz = dL_da * da_dz
+            # Element-wise multiplication with the activation derivative
+            dL_dz = dL_da * self.activation.backward(z)
 
         batch_size = X.shape[0]
 
-        # consistent scaling with loss definition
-        self.grad_W = np.dot(X.T, dL_dz) / batch_size
+        # 2. Compute gradients for parameters (including Weight Decay)
+        # Note: weight_decay * self.W is the derivative of the L2 penalty
+        self.grad_W = (np.dot(X.T, dL_dz) / batch_size) + (weight_decay * self.W)
         self.grad_b = np.sum(dL_dz, axis=0, keepdims=True) / batch_size
 
+        # 3. Compute gradient for the previous layer (dL/dX)
         dL_dX = np.dot(dL_dz, self.W.T)
 
         return dL_dX

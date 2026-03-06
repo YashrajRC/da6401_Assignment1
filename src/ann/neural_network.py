@@ -79,24 +79,28 @@ class NeuralNetwork:
         return output
 
     def backward(self, y_true, logits):
-
-        dL_dlogits = self.loss_function.compute_gradient(logits, y_true)
+        # Initial gradient from the loss function w.r.t. the logits
+        dL_dout = self.loss_function.compute_gradient(logits, y_true)
 
         grad_W_list = []
         grad_b_list = []
 
-        dL_dX = dL_dlogits
-
+        # Iterate backwards through layers: Output -> Hidden -> Input
         for layer in reversed(self.layers):
-
-            dL_dX = layer.backward(dL_dX, self.weight_decay)
-
+            # layer.backward now handles the activation derivative internally
+            dL_dout = layer.backward(dL_dout, self.weight_decay)
+            
+            # Store these to reverse them later
             grad_W_list.append(layer.grad_W)
             grad_b_list.append(layer.grad_b)
 
-        # return gradients as Python lists (not numpy object arrays)
-        self.grad_W = grad_W_list
-        self.grad_b = grad_b_list
+        # FIX: Reverse the lists so index 0 corresponds to Layer 0 (Input Layer)
+        grad_W_list.reverse()
+        grad_b_list.reverse()
+
+        # Convert to object arrays as required by the autograder
+        self.grad_W = np.array(grad_W_list, dtype=object)
+        self.grad_b = np.array(grad_b_list, dtype=object)
 
         return self.grad_W, self.grad_b
 
