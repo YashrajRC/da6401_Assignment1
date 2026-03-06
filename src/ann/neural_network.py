@@ -22,17 +22,22 @@ class NeuralNetwork:
         if isinstance(self.hidden_sizes, int):
             self.hidden_sizes = [self.hidden_sizes]
 
+        # Handle edge case: if num_layers=0, ensure hidden_sizes is empty
         if self.num_layers == 0:
             self.hidden_sizes = []
-
+        
+        # Validate hidden layer configuration
         if len(self.hidden_sizes) != self.num_layers:
+            # Flexible handling: adjust to match num_layers
             if len(self.hidden_sizes) < self.num_layers:
+                # Repeat last size if not enough
                 if len(self.hidden_sizes) > 0:
                     last_size = self.hidden_sizes[-1]
                     self.hidden_sizes = self.hidden_sizes + [last_size] * (self.num_layers - len(self.hidden_sizes))
                 else:
                     self.hidden_sizes = [128] * self.num_layers
             else:
+                # Truncate if too many
                 self.hidden_sizes = self.hidden_sizes[:self.num_layers]
 
         self.activation = getattr(cli_args, "activation", "relu")
@@ -79,25 +84,27 @@ class NeuralNetwork:
         return output
 
     def backward(self, y_true, logits):
-        # Initial gradient from the loss function w.r.t. the logits
-        dL_dout = self.loss_function.compute_gradient(logits, y_true)
+
+        dL_dlogits = self.loss_function.compute_gradient(logits, y_true)
 
         grad_W_list = []
         grad_b_list = []
 
-        # Iterate backwards through layers: Output -> Hidden -> Input
-        for layer in reversed(self.layers):
-            dL_dout = layer.backward(dL_dout, self.weight_decay)
-            
-            # Use insert(0, ...) so that Layer 0 ends up at index 0, 
-            # and the Output Layer ends up at the last index.
-            grad_W_list.insert(0, layer.grad_W)
-            grad_b_list.insert(0, layer.grad_b)
+        dL_dX = dL_dlogits
 
-        # Convert to object arrays as required by the autograder
-        # We do NOT use .reverse() here because insert(0, ...) already ordered them correctly
-        self.grad_W = np.array(grad_W_list, dtype=object)
-        self.grad_b = np.array(grad_b_list, dtype=object)
+        for layer in reversed(self.layers):
+
+            dL_dX = layer.backward(dL_dX, self.weight_decay)
+
+            grad_W_list.append(layer.grad_W)
+            grad_b_list.append(layer.grad_b)
+
+        self.grad_W = np.empty(len(grad_W_list), dtype=object)
+        self.grad_b = np.empty(len(grad_b_list), dtype=object)
+
+        for i in range(len(grad_W_list)):
+            self.grad_W[i] = grad_W_list[i]
+            self.grad_b[i] = grad_b_list[i]
 
         return self.grad_W, self.grad_b
 
@@ -130,10 +137,10 @@ class NeuralNetwork:
             predictions = np.argmax(logits, axis=1)
             targets = np.argmax(y_batch, axis=1)
 
-            if predictions.shape == targets.shape:
-                correct += np.sum(predictions == targets)
+            correct += np.sum(predictions == targets)
 
             self.backward(y_batch, logits)
+
             self.update_weights()
 
             num_batches += 1

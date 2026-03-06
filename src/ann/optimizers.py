@@ -1,132 +1,187 @@
 """
-Optimizer Module
-Implements SGD, Momentum, NAG, and RMSProp optimizers
+Main Neural Network Model class
+Handles forward and backward propagation loops
 """
+
 import numpy as np
+from .neural_layer import NeuralLayer
+from .objective_functions import get_loss_function
+from .optimizers import get_optimizer
 
 
-class Optimizer:
-    """Base class for optimizers"""
-    
-    def __init__(self, learning_rate=0.01):
-        self.learning_rate = learning_rate
-        self.state = {}
-    
-    def update(self, layers):
-        """Update weights for all layers"""
-        raise NotImplementedError
+class NeuralNetwork:
 
+    def __init__(self, cli_args):
 
-class SGD(Optimizer):
-    """Stochastic Gradient Descent"""
-    
-    def __init__(self, learning_rate=0.01):
-        super().__init__(learning_rate)
-    
-    def update(self, layers):
-        """Simple gradient descent update"""
-        for layer in layers:
-            if layer.grad_W is not None:
-                layer.W -= self.learning_rate * layer.grad_W
-                layer.b -= self.learning_rate * layer.grad_b
+        self.input_size = getattr(cli_args, "input_size", 784)
+        self.output_size = getattr(cli_args, "output_size", 10)
 
+        self.num_layers = getattr(cli_args, "num_layers", 3)
+        self.hidden_sizes = getattr(cli_args, "hidden_size", [128, 64, 32])
 
-class Momentum(Optimizer):
-    """SGD with Momentum"""
-    
-    def __init__(self, learning_rate=0.01, beta=0.9):
-        super().__init__(learning_rate)
-        self.beta = beta
-    
-    def update(self, layers):
-        """Update with momentum"""
-        for i, layer in enumerate(layers):
-            if layer.grad_W is not None:
-                # Initialize velocity if first time
-                if i not in self.state:
-                    self.state[i] = {
-                        'v_W': np.zeros_like(layer.W),
-                        'v_b': np.zeros_like(layer.b)
-                    }
-                
-                # Update velocity
-                self.state[i]['v_W'] = self.beta * self.state[i]['v_W'] - self.learning_rate * layer.grad_W
-                self.state[i]['v_b'] = self.beta * self.state[i]['v_b'] - self.learning_rate * layer.grad_b
-                
-                # Update weights
-                layer.W += self.state[i]['v_W']
-                layer.b += self.state[i]['v_b']
+        if isinstance(self.hidden_sizes, int):
+            self.hidden_sizes = [self.hidden_sizes]
 
+        # Handle edge case: if num_layers=0, ensure hidden_sizes is empty
+        if self.num_layers == 0:
+            self.hidden_sizes = []
+        
+        # Validate hidden layer configuration
+        if len(self.hidden_sizes) != self.num_layers:
+            # Flexible handling: adjust to match num_layers
+            if len(self.hidden_sizes) < self.num_layers:
+                # Repeat last size if not enough
+                if len(self.hidden_sizes) > 0:
+                    last_size = self.hidden_sizes[-1]
+                    self.hidden_sizes = self.hidden_sizes + [last_size] * (self.num_layers - len(self.hidden_sizes))
+                else:
+                    self.hidden_sizes = [128] * self.num_layers
+            else:
+                # Truncate if too many
+                self.hidden_sizes = self.hidden_sizes[:self.num_layers]
 
-class NAG(Optimizer):
-    """Nesterov Accelerated Gradient"""
-    
-    def __init__(self, learning_rate=0.01, beta=0.9):
-        super().__init__(learning_rate)
-        self.beta = beta
-    
-    def update(self, layers):
-        """Update with Nesterov momentum"""
-        for i, layer in enumerate(layers):
-            if layer.grad_W is not None:
-                # Initialize velocity if first time
-                if i not in self.state:
-                    self.state[i] = {
-                        'v_W': np.zeros_like(layer.W),
-                        'v_b': np.zeros_like(layer.b)
-                    }
-                
-                # Store old velocity
-                v_W_old = self.state[i]['v_W'].copy()
-                v_b_old = self.state[i]['v_b'].copy()
-                
-                # Update velocity
-                self.state[i]['v_W'] = self.beta * self.state[i]['v_W'] - self.learning_rate * layer.grad_W
-                self.state[i]['v_b'] = self.beta * self.state[i]['v_b'] - self.learning_rate * layer.grad_b
-                
-                # NAG update: -beta * v_old + (1 + beta) * v_new
-                layer.W += -self.beta * v_W_old + (1 + self.beta) * self.state[i]['v_W']
-                layer.b += -self.beta * v_b_old + (1 + self.beta) * self.state[i]['v_b']
+        self.activation = getattr(cli_args, "activation", "relu")
+        self.weight_init = getattr(cli_args, "weight_init", "xavier")
+        self.weight_decay = getattr(cli_args, "weight_decay", 0.0)
 
+        loss_name = getattr(cli_args, "loss", "cross_entropy")
+        optimizer_name = getattr(cli_args, "optimizer", "sgd")
+        learning_rate = getattr(cli_args, "learning_rate", 0.01)
 
-class RMSProp(Optimizer):
-    """RMSProp optimizer"""
-    
-    def __init__(self, learning_rate=0.01, beta=0.9, epsilon=1e-8):
-        super().__init__(learning_rate)
-        self.beta = beta
-        self.epsilon = epsilon
-    
-    def update(self, layers):
-        """Update with RMSProp"""
-        for i, layer in enumerate(layers):
-            if layer.grad_W is not None:
-                # Initialize cache if first time
-                if i not in self.state:
-                    self.state[i] = {
-                        's_W': np.zeros_like(layer.W),
-                        's_b': np.zeros_like(layer.b)
-                    }
-                
-                # Update cache (moving average of squared gradients)
-                self.state[i]['s_W'] = self.beta * self.state[i]['s_W'] + (1 - self.beta) * (layer.grad_W ** 2)
-                self.state[i]['s_b'] = self.beta * self.state[i]['s_b'] + (1 - self.beta) * (layer.grad_b ** 2)
-                
-                # Update weights
-                layer.W -= self.learning_rate * layer.grad_W / (np.sqrt(self.state[i]['s_W']) + self.epsilon)
-                layer.b -= self.learning_rate * layer.grad_b / (np.sqrt(self.state[i]['s_b']) + self.epsilon)
+        self.layers = []
 
+        layer_sizes = [self.input_size] + self.hidden_sizes + [self.output_size]
 
-def get_optimizer(name, learning_rate=0.01):
-    """Factory function to get optimizer by name"""
-    optimizers = {
-        'sgd': SGD(learning_rate),
-        'momentum': Momentum(learning_rate),
-        'nag': NAG(learning_rate),
-        'rmsprop': RMSProp(learning_rate)
-    }
-    
-    if name.lower() not in optimizers:
-        raise ValueError(f"Unknown optimizer: {name}")
-    
-    return optimizers[name.lower()]
+        for i in range(len(layer_sizes) - 1):
+
+            if i < len(layer_sizes) - 2:
+                activation = self.activation
+            else:
+                activation = None
+
+            layer = NeuralLayer(
+                layer_sizes[i],
+                layer_sizes[i + 1],
+                activation=activation,
+                weight_init=self.weight_init,
+            )
+
+            self.layers.append(layer)
+
+        self.loss_function = get_loss_function(loss_name)
+        self.optimizer = get_optimizer(optimizer_name, learning_rate)
+
+        self.grad_W = None
+        self.grad_b = None
+
+    def forward(self, X):
+
+        output = X
+
+        for layer in self.layers:
+            output = layer.forward(output)
+
+        return output
+
+    def backward(self, y_true, logits):
+
+        dL_dlogits = self.loss_function.compute_gradient(logits, y_true)
+
+        grad_W_list = []
+        grad_b_list = []
+
+        dL_dX = dL_dlogits
+
+        for layer in reversed(self.layers):
+
+            dL_dX = layer.backward(dL_dX, self.weight_decay)
+
+            grad_W_list.append(layer.grad_W)
+            grad_b_list.append(layer.grad_b)
+
+        self.grad_W = np.empty(len(grad_W_list), dtype=object)
+        self.grad_b = np.empty(len(grad_b_list), dtype=object)
+
+        for i in range(len(grad_W_list)):
+            self.grad_W[i] = grad_W_list[i]
+            self.grad_b[i] = grad_b_list[i]
+
+        return self.grad_W, self.grad_b
+
+    def update_weights(self):
+
+        self.optimizer.update(self.layers)
+
+    def train_epoch(self, X_train, y_train, batch_size=32):
+
+        num_samples = X_train.shape[0]
+        indices = np.random.permutation(num_samples)
+
+        total_loss = 0
+        correct = 0
+        num_batches = 0
+
+        for start_idx in range(0, num_samples, batch_size):
+
+            end_idx = min(start_idx + batch_size, num_samples)
+            batch_indices = indices[start_idx:end_idx]
+
+            X_batch = X_train[batch_indices]
+            y_batch = y_train[batch_indices]
+
+            logits = self.forward(X_batch)
+
+            loss = self.loss_function.compute_loss(logits, y_batch)
+            total_loss += loss
+
+            predictions = np.argmax(logits, axis=1)
+            targets = np.argmax(y_batch, axis=1)
+
+            correct += np.sum(predictions == targets)
+
+            self.backward(y_batch, logits)
+
+            self.update_weights()
+
+            num_batches += 1
+
+        avg_loss = total_loss / num_batches
+        accuracy = correct / num_samples
+
+        return avg_loss, accuracy
+
+    def evaluate(self, X, y):
+
+        logits = self.forward(X)
+
+        loss = self.loss_function.compute_loss(logits, y)
+
+        predictions = np.argmax(logits, axis=1)
+        targets = np.argmax(y, axis=1)
+
+        accuracy = np.mean(predictions == targets)
+
+        return loss, accuracy, predictions
+
+    def get_weights(self):
+
+        d = {}
+
+        for i, layer in enumerate(self.layers):
+            d[f"W{i}"] = layer.W.copy()
+            d[f"b{i}"] = layer.b.copy()
+
+        return d
+
+    def set_weights(self, weight_dict):
+
+        for i, layer in enumerate(self.layers):
+
+            w_key = f"W{i}"
+            b_key = f"b{i}"
+
+            if w_key in weight_dict:
+                layer.W = weight_dict[w_key].copy()
+
+            if b_key in weight_dict:
+                layer.b = weight_dict[b_key].copy()
