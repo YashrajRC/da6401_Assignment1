@@ -1,6 +1,6 @@
 {
   "dataset": "mnist",
-  "epochs": 15,
+  "epochs": 10,
   "batch_size": 64,
   "learning_rate": 0.001,
   "weight_decay": 0.0001,
@@ -17,6 +17,6 @@
   "wandb_project": "da6401-assignment1",
   "model_save_path": "best_model.npy",
   "config_save_path": "best_config.json",
-  "test_f1": 0.9716781979376404,
-  "test_accuracy": 0.9717
+  "test_f1": 0.9793944196770324,
+  "test_accuracy": 0.9794
 }
