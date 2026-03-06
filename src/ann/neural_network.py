@@ -22,22 +22,17 @@ class NeuralNetwork:
         if isinstance(self.hidden_sizes, int):
             self.hidden_sizes = [self.hidden_sizes]
 
-        # Handle edge case: if num_layers=0, ensure hidden_sizes is empty
         if self.num_layers == 0:
             self.hidden_sizes = []
-        
-        # Validate hidden layer configuration
+
         if len(self.hidden_sizes) != self.num_layers:
-            # Flexible handling: adjust to match num_layers
             if len(self.hidden_sizes) < self.num_layers:
-                # Repeat last size if not enough
                 if len(self.hidden_sizes) > 0:
                     last_size = self.hidden_sizes[-1]
                     self.hidden_sizes = self.hidden_sizes + [last_size] * (self.num_layers - len(self.hidden_sizes))
                 else:
                     self.hidden_sizes = [128] * self.num_layers
             else:
-                # Truncate if too many
                 self.hidden_sizes = self.hidden_sizes[:self.num_layers]
 
         self.activation = getattr(cli_args, "activation", "relu")
@@ -99,12 +94,9 @@ class NeuralNetwork:
             grad_W_list.append(layer.grad_W)
             grad_b_list.append(layer.grad_b)
 
-        self.grad_W = np.empty(len(grad_W_list), dtype=object)
-        self.grad_b = np.empty(len(grad_b_list), dtype=object)
-
-        for i in range(len(grad_W_list)):
-            self.grad_W[i] = grad_W_list[i]
-            self.grad_b[i] = grad_b_list[i]
+        # return gradients as Python lists (not numpy object arrays)
+        self.grad_W = grad_W_list
+        self.grad_b = grad_b_list
 
         return self.grad_W, self.grad_b
 

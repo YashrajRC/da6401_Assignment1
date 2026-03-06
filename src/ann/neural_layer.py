@@ -71,6 +71,7 @@ class NeuralLayer:
 
         batch_size = X.shape[0]
 
+        # consistent scaling with loss definition
         self.grad_W = np.dot(X.T, dL_dz) / batch_size
         self.grad_b = np.sum(dL_dz, axis=0, keepdims=True) / batch_size
 
