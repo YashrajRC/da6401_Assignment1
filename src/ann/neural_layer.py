@@ -69,14 +69,14 @@ class NeuralLayer:
             da_dz = self.activation.backward(z)
             dL_dz = dL_da * da_dz
 
-        batch_size = X.shape[0]
-
-        self.grad_W = np.dot(X.T, dL_dz) / batch_size
+        # Gradient w.r.t. weights
+        # dL_da is already averaged from loss, so no division needed
+        self.grad_W = np.dot(X.T, dL_dz)
 
         if weight_decay > 0:
-            self.grad_W += (weight_decay / batch_size) * self.W
+            self.grad_W += weight_decay * self.W
 
-        self.grad_b = np.sum(dL_dz, axis=0, keepdims=True) / batch_size
+        self.grad_b = np.sum(dL_dz, axis=0, keepdims=True)
 
         dL_dX = np.dot(dL_dz, self.W.T)
 

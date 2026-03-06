@@ -19,16 +19,16 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(description="Train MLP")
 
-    parser.add_argument("-d", "--dataset", type=str, default="fashion_mnist",
+    parser.add_argument("-d", "--dataset", type=str, default="mnist",
                         choices=["mnist", "fashion_mnist"])
 
-    parser.add_argument("-e", "--epochs", type=int, default=20)
+    parser.add_argument("-e", "--epochs", type=int, default=15)
 
     parser.add_argument("-b", "--batch_size", type=int, default=64)
 
     parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
 
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.00005)
 
     parser.add_argument("-o", "--optimizer", type=str, default="rmsprop",
                         choices=["sgd", "momentum", "nag", "rmsprop"])

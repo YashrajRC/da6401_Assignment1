@@ -24,7 +24,7 @@ def parse_arguments():
                         help="Path to saved model weights")
 
     parser.add_argument("-d", "--dataset", type=str,
-                        default="fashion_mnist",
+                        default="mnist",
                         choices=["mnist", "fashion_mnist"],
                         help="Dataset to use")
 
@@ -55,7 +55,7 @@ def parse_arguments():
                         help="Learning rate")
 
     parser.add_argument("-wd", "--weight_decay", type=float,
-                        default=0.0001,
+                        default=0.00005,
                         help="Weight decay")
 
     parser.add_argument("-b", "--batch_size", type=int,
@@ -63,7 +63,7 @@ def parse_arguments():
                         help="Batch size")
 
     parser.add_argument("-e", "--epochs", type=int,
-                        default=20,
+                        default=15,
                         help="Number of epochs")
 
     parser.add_argument("-w_i", "--weight_init", type=str,

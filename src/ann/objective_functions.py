@@ -21,8 +21,13 @@ class MeanSquaredError(LossFunction):
         return np.mean((y_pred - y_true) ** 2)
 
     def compute_gradient(self, y_pred, y_true):
-        # Do NOT divide by batch size here
-        return 2 * (y_pred - y_true)
+        """
+        Gradient of MSE w.r.t. predictions
+        Since loss is averaged, gradient is also averaged
+        """
+        batch_size = y_pred.shape[0]
+        gradient = 2.0 * (y_pred - y_true) / batch_size
+        return gradient
 
 
 class CrossEntropyLoss(LossFunction):
@@ -47,11 +52,15 @@ class CrossEntropyLoss(LossFunction):
         return loss
 
     def compute_gradient(self, logits, y_true):
-
+        """
+        Gradient of averaged cross-entropy loss
+        Since loss = -sum(y * log(probs)) / N, gradient = (probs - y) / N
+        """
+        batch_size = logits.shape[0]
         probs = self.softmax(logits)
-
-        # IMPORTANT: no division by batch size here
-        return (probs - y_true)
+        
+        # Divide by batch_size since loss is averaged
+        return (probs - y_true) / batch_size
 
 
 def get_loss_function(name):
