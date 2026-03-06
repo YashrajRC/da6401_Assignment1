@@ -32,7 +32,7 @@ def parse_arguments():
                         help="Number of hidden layers")
 
     parser.add_argument("-sz", "--hidden_size", type=int,
-                        nargs="+", default=[128, 128, 128],
+                        nargs="+", default=[128, 128, 64],
                         help="Number of neurons in each hidden layer")
 
     parser.add_argument("-a", "--activation", type=str,
@@ -51,11 +51,11 @@ def parse_arguments():
                         help="Optimizer")
 
     parser.add_argument("-lr", "--learning_rate", type=float,
-                        default=0.0005,
+                        default=0.001,
                         help="Learning rate")
 
     parser.add_argument("-wd", "--weight_decay", type=float,
-                        default=0.0005,
+                        default=0.0001,
                         help="Weight decay")
 
     parser.add_argument("-b", "--batch_size", type=int,
@@ -63,7 +63,7 @@ def parse_arguments():
                         help="Batch size")
 
     parser.add_argument("-e", "--epochs", type=int,
-                        default=25,
+                        default=30,
                         help="Number of epochs")
 
     parser.add_argument("-w_i", "--weight_init", type=str,

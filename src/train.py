@@ -22,13 +22,13 @@ def parse_arguments():
     parser.add_argument("-d", "--dataset", type=str, default="mnist",
                         choices=["mnist", "fashion_mnist"])
 
-    parser.add_argument("-e", "--epochs", type=int, default=25)
+    parser.add_argument("-e", "--epochs", type=int, default=30)
 
     parser.add_argument("-b", "--batch_size", type=int, default=32)
 
-    parser.add_argument("-lr", "--learning_rate", type=float, default=0.0005)
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
 
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0005)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001)
 
     parser.add_argument("-o", "--optimizer", type=str, default="rmsprop",
                         choices=["sgd", "momentum", "nag", "rmsprop"])
@@ -36,7 +36,7 @@ def parse_arguments():
     parser.add_argument("-nhl", "--num_layers", type=int, default=3)
 
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
-                        default=[128, 128, 128])
+                        default=[128, 128, 64])
 
     parser.add_argument("-a", "--activation", type=str, default="relu",
                         choices=["sigmoid", "tanh", "relu"])
