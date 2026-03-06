@@ -51,10 +51,10 @@ def parse_arguments():
                         default="da6401-assignment1")
 
     parser.add_argument("--model_save_path", type=str,
-                        default="src/best_model.npy")
+                        default="best_model.npy")
 
     parser.add_argument("--config_save_path", type=str,
-                        default="src/best_config.json")
+                        default="best_config.json")
 
     return parser.parse_args()
 
@@ -118,7 +118,7 @@ def main():
             best_val_f1 = val_f1
             best_weights = model.get_weights()
 
-            print("New best model!")
+            print("  -> New best model!")
 
     print("\nEvaluating best model on test set...")
 
@@ -144,17 +144,18 @@ def main():
     print("Test Recall:", test_recall)
 
     # Save model
-    os.makedirs(os.path.dirname(args.model_save_path), exist_ok=True)
-
     np.save(args.model_save_path, best_weights)
+    print(f"Model saved to {args.model_save_path}")
 
     # Save config
     config = vars(args)
+    config['test_f1'] = float(test_f1)
+    config['test_accuracy'] = float(test_acc)
 
     with open(args.config_save_path, "w") as f:
         json.dump(config, f, indent=2)
 
-    print("Training complete")
+    print("Training complete!")
 
 
 if __name__ == "__main__":

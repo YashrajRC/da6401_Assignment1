@@ -19,7 +19,6 @@ class Sigmoid(Activation):
     """Sigmoid activation: 1 / (1 + exp(-z))"""
     
     def forward(self, z):
-        # Clip to prevent overflow
         z_clipped = np.clip(z, -500, 500)
         return 1.0 / (1.0 + np.exp(-z_clipped))
     

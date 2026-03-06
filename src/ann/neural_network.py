@@ -5,7 +5,7 @@ Handles forward and backward propagation loops
 
 import numpy as np
 from .neural_layer import NeuralLayer
-from .losses import get_loss_function
+from .objective_functions import get_loss_function
 from .optimizers import get_optimizer
 
 
