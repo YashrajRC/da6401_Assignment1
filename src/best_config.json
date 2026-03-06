@@ -1,16 +1,22 @@
 {
-  "dataset": "fashion_mnist",
-  "epochs": 20,
+  "dataset": "mnist",
+  "epochs": 2,
   "batch_size": 64,
   "learning_rate": 0.001,
   "weight_decay": 0.0001,
   "optimizer": "rmsprop",
   "num_layers": 3,
-  "hidden_size": [128, 64, 32],
+  "hidden_size": [
+    128,
+    64,
+    32
+  ],
   "activation": "relu",
   "loss": "cross_entropy",
   "weight_init": "xavier",
   "wandb_project": "da6401-assignment1",
   "model_save_path": "best_model.npy",
-  "config_save_path": "best_config.json"
+  "config_save_path": "best_config.json",
+  "test_f1": 0.9617639878414997,
+  "test_accuracy": 0.9616
 }
