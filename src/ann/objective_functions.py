@@ -16,13 +16,14 @@ class LossFunction:
 
 
 class MeanSquaredError(LossFunction):
-
     def compute_loss(self, y_pred, y_true):
         return np.mean((y_pred - y_true) ** 2)
 
     def compute_gradient(self, y_pred, y_true):
-        # Do NOT divide by batch size here
-        return 2 * (y_pred - y_true)
+        # Scale by 2/M (where M is output size) to match np.mean's derivative
+        # The 1/N (batch size) is handled in NeuralLayer.backward
+        output_size = y_pred.shape[1]
+        return 2 * (y_pred - y_true) / output_size
 
 
 class CrossEntropyLoss(LossFunction):
