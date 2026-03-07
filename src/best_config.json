@@ -1,6 +1,6 @@
 {
   "dataset": "mnist",
-  "epochs": 30,
+  "epochs": 10,
   "batch_size": 32,
   "learning_rate": 0.001,
   "weight_decay": 0.0001,
@@ -19,6 +19,6 @@
   "name": null,
   "model_save_path": "src/best_model.npy",
   "config_save_path": "src/best_config.json",
-  "test_f1": 0.9760092774781542,
-  "test_accuracy": 0.976
+  "test_f1": 0.972606433126777,
+  "test_accuracy": 0.9726
 }
