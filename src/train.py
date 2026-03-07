@@ -1,3 +1,15 @@
+"""
+Main Training Script
+Entry point for training neural networks with command-line arguments.
+Logs all metrics to Weights & Biases (wandb) each epoch.
+Saves best_model.npy and best_config.json into the src/ folder.
+
+Compatible with wandb sweep agents:
+  - --group  is accepted (used by sweep yaml command block)
+  - --hidden_size can be a single int (e.g. 128) or a list (128 128 64);
+    a single int is automatically expanded to [int] * num_layers by NeuralNetwork.
+  - project name matches sweep.yaml exactly: da6401_assignment1 (underscore)
+"""
 
 import argparse
 import numpy as np
@@ -11,6 +23,11 @@ from utils.data_loader import load_dataset, train_val_split
 
 
 def parse_arguments():
+    """
+    Parse command-line arguments.
+    Default values reflect the best-performing configuration found during sweeps.
+    Both train.py and inference.py share the same CLI arguments per assignment spec.
+    """
 
     parser = argparse.ArgumentParser(description="Train MLP on MNIST / Fashion-MNIST")
 
@@ -37,6 +54,9 @@ def parse_arguments():
     parser.add_argument("-nhl", "--num_layers", type=int, default=3,
                         help="Number of hidden layers")
 
+    # nargs="+" accepts both "128 128 64" (list) and "128" (single int).
+    # When the sweep passes a single int (e.g. --hidden_size 128), argparse
+    # returns [128]; NeuralNetwork then replicates it to match num_layers.
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
                         default=[128, 128, 64],
                         help="Neurons per hidden layer. Single value applies to all layers.")
@@ -53,22 +73,32 @@ def parse_arguments():
                         choices=["random", "xavier"],
                         help="Weight initialisation method")
 
+    # Project name uses underscore to exactly match sweep.yaml
     parser.add_argument("-w_p", "--wandb_project", type=str,
-                        default="da6401-assignment1",
+                        default="da6401_assignment1",
                         help="Weights & Biases project name (must match sweep.yaml)")
 
+    # --group is injected by the sweep yaml command block; must be accepted here
     parser.add_argument("--group", type=str, default=None,
                         help="W&B run group (set automatically by sweep agent)")
 
+    # --name gives the run a human-readable label in the W&B UI.
+    # If not provided, it is auto-generated from key hyperparameters below.
     parser.add_argument("--name", type=str, default=None,
                         help="W&B run name (auto-generated from config if not set)")
 
+    # Save paths resolve relative to THIS FILE's location (src/train.py)
+    # so files are always written to src/ regardless of working directory.
+    _this_dir          = os.path.dirname(os.path.abspath(__file__))
+    _default_model     = os.path.join(_this_dir, "best_model.npy")
+    _default_config    = os.path.join(_this_dir, "best_config.json")
+
     parser.add_argument("--model_save_path", type=str,
-                        default="src/best_model.npy",
+                        default=_default_model,
                         help="Where to save the best model weights (.npy)")
 
     parser.add_argument("--config_save_path", type=str,
-                        default="src/best_config.json",
+                        default=_default_config,
                         help="Where to save the best config (.json)")
 
     return parser.parse_args()
@@ -78,36 +108,53 @@ def main():
 
     args = parse_arguments()
 
+    # ------------------------------------------------------------------ #
+    #  Ensure the src/ directory exists before saving anything there      #
+    # ------------------------------------------------------------------ #
     save_dir = os.path.dirname(args.model_save_path)
     if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
+    # ------------------------------------------------------------------ #
+    #  Auto-generate a descriptive run name if none was provided.         #
+    #  Format: <group-prefix>_<optimizer>_lr<lr>_<activation>_<init>      #
+    #  e.g.  "2.3-optimizer-showdown_sgd_lr0.01_relu_xavier"              #
+    # ------------------------------------------------------------------ #
     if args.name is None:
+        # Auto-generate a short, human-readable run name based on the group context.
+        # Each section gets names that reflect exactly what varies in that experiment.
         g = args.group or ""
 
         if "optimizer-showdown" in g:
+            # Distinguishing factor: which optimizer
             run_name = f"optim_{args.optimizer}"
 
         elif "vanishing-grad" in g:
+            # Distinguishing factor: activation (sigmoid vs relu) + depth
             run_name = f"grad_{args.activation}_depth{args.num_layers}"
 
         elif "dead-neurons" in g:
+            # Distinguishing factor: activation + lr level
             lr_tag = "highlr" if args.learning_rate >= 0.05 else "lowlr"
             run_name = f"dead_{args.activation}_{lr_tag}"
 
         elif "loss-comparison" in g:
+            # Distinguishing factor: loss function
             loss_short = {"cross_entropy": "crossentropy",
                           "mean_squared_error": "mse",
                           "mse": "mse"}.get(args.loss, args.loss)
             run_name = f"loss_{loss_short}"
 
         elif "weight-init" in g:
+            # Distinguishing factor: init strategy
             run_name = f"init_{args.weight_init}"
 
         elif "fashion-mnist" in g:
+            # Distinguishing factor: optimizer + activation combo
             run_name = f"fashion_{args.optimizer}_{args.activation}_nl{args.num_layers}"
 
         else:
+            # Fallback for sweep runs or ungrouped runs — keep a compact summary
             sz_str = "-".join(str(s) for s in args.hidden_size)
             loss_short = {"cross_entropy": "ce",
                           "mean_squared_error": "mse"}.get(args.loss, args.loss)
@@ -123,10 +170,14 @@ def main():
     else:
         run_name = args.name
 
+    # ------------------------------------------------------------------ #
+    #  Initialise Weights & Biases run                                    #
+    #  group= organises sweep runs into named groups in the W&B UI        #
+    # ------------------------------------------------------------------ #
     run = wandb.init(
         project=args.wandb_project,
         name=run_name,
-        group=args.group,         
+        group=args.group,           # None for manual runs; set by sweep yaml
         config={
             "dataset":        args.dataset,
             "epochs":         args.epochs,
@@ -142,13 +193,17 @@ def main():
         }
     )
 
-  
+    # After wandb.init, sweep may have overridden config values via wandb.config.
+    # Read them back so the model uses what wandb actually set.
     cfg = wandb.config
 
+    # hidden_size from sweep is a single int → convert to list for NeuralNetwork
     hidden_size = cfg.get("hidden_size", args.hidden_size)
     if isinstance(hidden_size, int):
         hidden_size = [hidden_size]
     args.hidden_size = hidden_size
+
+    # Sync all other swept params back into args
     args.dataset        = cfg.get("dataset",        args.dataset)
     args.epochs         = cfg.get("epochs",         args.epochs)
     args.batch_size     = cfg.get("batch_size",     args.batch_size)
@@ -177,6 +232,9 @@ def main():
     print(f"  Run name     : {run_name}")
     print("=" * 50)
 
+    # ------------------------------------------------------------------ #
+    #  Load dataset                                                        #
+    # ------------------------------------------------------------------ #
     X_train, y_train, X_test, y_test = load_dataset(args.dataset)
     X_train, y_train, X_val, y_val   = train_val_split(X_train, y_train, 0.1)
 
@@ -184,6 +242,9 @@ def main():
     print(f"Validation samples: {X_val.shape[0]}")
     print(f"Test samples      : {X_test.shape[0]}")
 
+    # ------------------------------------------------------------------ #
+    #  Build model                                                         #
+    # ------------------------------------------------------------------ #
     model = NeuralNetwork(args)
 
     best_val_f1  = 0.0
@@ -195,15 +256,23 @@ def main():
 
     for epoch in range(args.epochs):
 
+        # ---------- training step ----------
         train_loss, train_acc = model.train_epoch(
             X_train, y_train, args.batch_size
         )
 
+        # ---------- validation step ----------
         val_loss, val_acc, val_preds = model.evaluate(X_val, y_val)
         val_targets = np.argmax(y_val, axis=1)
         val_f1 = f1_score(val_targets, val_preds, average="weighted",
                           zero_division=0)
 
+        # ---------- gradient norms for EVERY layer ----------
+        # Logged as grad_norm_layer_0, grad_norm_layer_1, ... grad_norm_layer_N
+        # Used for:
+        #   Section 2.4 — compare sigmoid vs relu gradient flow across depth
+        #   Section 2.5 — observe dead neurons (norm collapses to 0)
+        #   Section 2.9 — compare zeros vs xavier init gradient behaviour
         layer_grad_log = {}
         for layer_idx, layer in enumerate(model.layers):
             if layer.grad_W is not None:
@@ -219,6 +288,7 @@ def main():
             f"Val F1: {val_f1:.4f}"
         )
 
+        # ---------- log every epoch to W&B ----------
         log_dict = {
             "epoch":          epoch + 1,
             "train_loss":     train_loss,
@@ -227,14 +297,18 @@ def main():
             "val_accuracy":   val_acc,
             "val_f1":         val_f1,
         }
-        log_dict.update(layer_grad_log)   
+        log_dict.update(layer_grad_log)   # adds grad_norm_layer_0 … grad_norm_layer_N
         wandb.log(log_dict)
 
+        # ---------- checkpoint best model ----------
         if val_f1 > best_val_f1:
             best_val_f1  = val_f1
             best_weights = model.get_weights()
             print("  -> New best model saved!")
 
+    # ------------------------------------------------------------------ #
+    #  Evaluate best model on held-out test set                           #
+    # ------------------------------------------------------------------ #
     print("\nEvaluating best model on test set...")
     model.set_weights(best_weights)
 
@@ -261,6 +335,11 @@ def main():
         "test_recall":    test_recall,
     })
 
+    # ------------------------------------------------------------------ #
+    #  Save model weights → src/best_model.npy                            #
+    #  Only save during normal (non-sweep) runs to avoid overwriting the  #
+    #  best model with a worse sweep candidate.                            #
+    # ------------------------------------------------------------------ #
     if args.group is None:
         np.save(args.model_save_path, best_weights)
         print(f"\nModel saved  -> {args.model_save_path}")
