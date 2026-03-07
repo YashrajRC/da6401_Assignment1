@@ -1,0 +1,22 @@
+{
+  "dataset": "mnist",
+  "epochs": 30,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "optimizer": "rmsprop",
+  "num_layers": 3,
+  "hidden_size": [
+    128,
+    128,
+    128
+  ],
+  "activation": "relu",
+  "loss": "cross_entropy",
+  "weight_init": "xavier",
+  "model_save_path": "best_model.npy",
+  "test_f1": 0.9777055199008446,
+  "test_accuracy": 0.9777,
+  "test_precision": 0.9777919340096393,
+  "test_recall": 0.9777
+}
