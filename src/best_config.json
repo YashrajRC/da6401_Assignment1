@@ -14,11 +14,11 @@
   "activation": "relu",
   "loss": "cross_entropy",
   "weight_init": "xavier",
-  "wandb_project": "da6401-assignment1",
+  "wandb_project": "da6401_assignment1",
   "group": null,
   "name": null,
-  "model_save_path": "src/best_model.npy",
-  "config_save_path": "src/best_config.json",
-  "test_f1": 0.972606433126777,
-  "test_accuracy": 0.9726
+  "model_save_path": "/home/chava/da6401_assignment1/src/best_model.npy",
+  "config_save_path": "/home/chava/da6401_assignment1/src/best_config.json",
+  "test_f1": 0.9741208515289974,
+  "test_accuracy": 0.9741
 }
