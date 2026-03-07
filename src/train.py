@@ -17,30 +17,30 @@ def parse_arguments():
                         choices=["mnist", "fashion_mnist"],
                         help="Dataset to use")
 
-    parser.add_argument("-e", "--epochs", type=int, default=30,
+    parser.add_argument("-e", "--epochs", type=int, default=10,
                         help="Number of training epochs")
 
     parser.add_argument("-b", "--batch_size", type=int, default=32,
                         help="Mini-batch size")
 
-    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001,
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.01,
                         help="Initial learning rate")
 
     parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001,
                         help="L2 weight decay coefficient")
 
-    parser.add_argument("-o", "--optimizer", type=str, default="rmsprop",
+    parser.add_argument("-o", "--optimizer", type=str, default="nag",
                         choices=["sgd", "momentum", "nag", "rmsprop"],
                         help="Optimizer")
 
-    parser.add_argument("-nhl", "--num_layers", type=int, default=3,
+    parser.add_argument("-nhl", "--num_layers", type=int, default=2,
                         help="Number of hidden layers")
 
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
-                        default=[128, 128, 64],
+                        default= 128,
                         help="Neurons per hidden layer. Single value applies to all layers.")
 
-    parser.add_argument("-a", "--activation", type=str, default="relu",
+    parser.add_argument("-a", "--activation", type=str, default="tanh",
                         choices=["sigmoid", "tanh", "relu"],
                         help="Activation function for hidden layers")
 
