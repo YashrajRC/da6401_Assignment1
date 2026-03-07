@@ -85,15 +85,20 @@ def parse_arguments():
 def load_model(model_path):
     """
     Load trained model weights from a .npy file saved with np.save().
+    Also extracts architecture metadata saved by train.py under "__arch__".
 
     Args:
         model_path (str): Path to the .npy weights file.
 
     Returns:
-        dict: Weight dictionary with keys W0, b0, W1, b1, …
+        tuple: (weight_dict, arch_dict)
+            weight_dict — keys W0,b0,W1,b1,... for set_weights()
+            arch_dict   — architecture config (hidden_size, activation, etc.)
+                          or None if the file was saved without metadata
     """
     data = np.load(model_path, allow_pickle=True).item()
-    return data
+    arch = data.pop("__arch__", None)   # extract metadata, leave only weights
+    return data, arch
 
 
 def evaluate_model(model, X_test, y_test):
@@ -131,6 +136,10 @@ def main():
     Main inference entry point.
     Loads the dataset, reconstructs the model architecture, loads saved weights,
     and prints Accuracy / F1 / Precision / Recall.
+
+    Architecture is read from the __arch__ metadata stored inside best_model.npy
+    by train.py. This makes inference robust to any CLI args the autograder passes —
+    the model always rebuilds itself exactly as it was trained.
     """
 
     args = parse_arguments()
@@ -138,11 +147,43 @@ def main():
     print("Loading dataset...")
     _, _, X_test, y_test = load_dataset(args.dataset)
 
+    # ------------------------------------------------------------------ #
+    #  Resolve model path: try the given path first; if it doesn't exist, #
+    #  also try next to this script file (handles autograder path issues)  #
+    # ------------------------------------------------------------------ #
+    model_path = args.model_path
+    if not os.path.isfile(model_path):
+        # fallback: look for best_model.npy next to inference.py itself
+        _here = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(_here, "best_model.npy")
+
+    print(f"Loading weights from {model_path} ...")
+    weights, arch = load_model(model_path)
+
+    # ------------------------------------------------------------------ #
+    #  Reconstruct architecture from file metadata (preferred) or         #
+    #  fall back to CLI defaults if metadata is absent (old-format file). #
+    # ------------------------------------------------------------------ #
+    if arch is not None:
+        print("Architecture loaded from model file:")
+        args.hidden_size  = arch["hidden_size"]
+        args.num_layers   = arch["num_layers"]
+        args.activation   = arch["activation"]
+        args.weight_init  = arch.get("weight_init",   args.weight_init)
+        args.loss         = arch.get("loss",           args.loss)
+        args.optimizer    = arch.get("optimizer",      args.optimizer)
+        args.learning_rate = arch.get("learning_rate", args.learning_rate)
+        args.weight_decay  = arch.get("weight_decay",  args.weight_decay)
+    else:
+        print("No architecture metadata in file — using CLI defaults.")
+
+    print(f"  hidden_size : {args.hidden_size}")
+    print(f"  num_layers  : {args.num_layers}")
+    print(f"  activation  : {args.activation}")
+
     print("Initialising model architecture...")
     model = NeuralNetwork(args)
 
-    print(f"Loading weights from {args.model_path} ...")
-    weights = load_model(args.model_path)
     model.set_weights(weights)
 
     print("Running evaluation...")

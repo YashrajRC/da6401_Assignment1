@@ -19,6 +19,6 @@
   "name": null,
   "model_save_path": "/home/chava/da6401_assignment1/src/best_model.npy",
   "config_save_path": "/home/chava/da6401_assignment1/src/best_config.json",
-  "test_f1": 0.9741208515289974,
-  "test_accuracy": 0.9741
+  "test_f1": 0.973794986425448,
+  "test_accuracy": 0.9738
 }

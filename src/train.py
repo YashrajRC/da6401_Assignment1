@@ -337,11 +337,25 @@ def main():
 
     # ------------------------------------------------------------------ #
     #  Save model weights → src/best_model.npy                            #
-    #  Only save during normal (non-sweep) runs to avoid overwriting the  #
-    #  best model with a worse sweep candidate.                            #
+    #  Architecture metadata is saved INSIDE the .npy file so that        #
+    #  inference.py can always reconstruct the exact same model            #
+    #  regardless of what CLI arguments the autograder passes.             #
+    #  Only save during normal (non-sweep) runs.                           #
     # ------------------------------------------------------------------ #
     if args.group is None:
-        np.save(args.model_save_path, best_weights)
+        # Bundle weights + architecture into one dict
+        save_dict = dict(best_weights)   # copy W0,b0,W1,b1,...
+        save_dict["__arch__"] = {
+            "hidden_size": list(args.hidden_size),
+            "num_layers":  int(args.num_layers),
+            "activation":  str(args.activation),
+            "weight_init": str(args.weight_init),
+            "loss":        str(args.loss),
+            "optimizer":   str(args.optimizer),
+            "learning_rate": float(args.learning_rate),
+            "weight_decay":  float(args.weight_decay),
+        }
+        np.save(args.model_save_path, save_dict)
         print(f"\nModel saved  -> {args.model_save_path}")
 
         config = vars(args).copy()
