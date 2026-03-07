@@ -1,0 +1,63 @@
+# sweep.yaml
+# Run from the PROJECT ROOT (one level above src/) with:
+#
+#   source .venv/bin/activate
+#   wandb sweep sweep.yaml
+#   wandb agent <USERNAME>/da6401_assignment1/<SWEEP_ID>
+#
+# The sweep uses random search for 100+ runs.
+# hidden_size is a single integer; NeuralNetwork expands it to
+# [hidden_size] * num_layers automatically.
+
+project: da6401-assignment1
+program: src/train.py
+
+method: random
+
+command:
+  - ${env}
+  - python3
+  - ${program}
+  - --group
+  - 2_hyperparameter_sweep
+  - ${args}
+
+metric:
+  name: val_accuracy
+  goal: maximize
+
+parameters:
+
+  dataset:
+    value: mnist
+
+  epochs:
+    value: 8
+
+  batch_size:
+    values: [32, 64, 128]
+
+  learning_rate:
+    values: [0.1, 0.01, 0.001, 0.0001]
+
+  optimizer:
+    values: ["sgd", "momentum", "nag", "rmsprop"]
+
+  num_layers:
+    values: [2, 3, 4, 5]
+
+  # Single integer — train.py converts it to [hidden_size] * num_layers
+  hidden_size:
+    values: [32, 64, 128, 256]
+
+  activation:
+    values: ["relu", "tanh", "sigmoid"]
+
+  weight_init:
+    values: ["random", "xavier"]
+
+  weight_decay:
+    values: [0.0, 0.0001, 0.001, 0.01]
+
+  loss:
+    value: cross_entropy

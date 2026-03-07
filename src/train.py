@@ -1,6 +1,14 @@
 """
 Main Training Script
-Entry point for training neural networks with command-line arguments
+Entry point for training neural networks with command-line arguments.
+Logs all metrics to Weights & Biases (wandb) each epoch.
+Saves best_model.npy and best_config.json into the src/ folder.
+
+Compatible with wandb sweep agents:
+  - --group  is accepted (used by sweep yaml command block)
+  - --hidden_size can be a single int (e.g. 128) or a list (128 128 64);
+    a single int is automatically expanded to [int] * num_layers by NeuralNetwork.
+  - project name matches sweep.yaml exactly: da6401_assignment1 (underscore)
 """
 
 import argparse
@@ -8,53 +16,80 @@ import numpy as np
 import json
 import os
 
+import wandb
+
 from ann.neural_network import NeuralNetwork
 from utils.data_loader import load_dataset, train_val_split
 
 
 def parse_arguments():
     """
-    Parse command-line arguments
+    Parse command-line arguments.
+    Default values reflect the best-performing configuration found during sweeps.
+    Both train.py and inference.py share the same CLI arguments per assignment spec.
     """
 
-    parser = argparse.ArgumentParser(description="Train MLP")
+    parser = argparse.ArgumentParser(description="Train MLP on MNIST / Fashion-MNIST")
 
     parser.add_argument("-d", "--dataset", type=str, default="mnist",
-                        choices=["mnist", "fashion_mnist"])
+                        choices=["mnist", "fashion_mnist"],
+                        help="Dataset to use")
 
-    parser.add_argument("-e", "--epochs", type=int, default=30)
+    parser.add_argument("-e", "--epochs", type=int, default=30,
+                        help="Number of training epochs")
 
-    parser.add_argument("-b", "--batch_size", type=int, default=32)
+    parser.add_argument("-b", "--batch_size", type=int, default=32,
+                        help="Mini-batch size")
 
-    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001,
+                        help="Initial learning rate")
 
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001,
+                        help="L2 weight decay coefficient")
 
     parser.add_argument("-o", "--optimizer", type=str, default="rmsprop",
-                        choices=["sgd", "momentum", "nag", "rmsprop"])
+                        choices=["sgd", "momentum", "nag", "rmsprop"],
+                        help="Optimizer")
 
-    parser.add_argument("-nhl", "--num_layers", type=int, default=3)
+    parser.add_argument("-nhl", "--num_layers", type=int, default=3,
+                        help="Number of hidden layers")
 
+    # nargs="+" accepts both "128 128 64" (list) and "128" (single int).
+    # When the sweep passes a single int (e.g. --hidden_size 128), argparse
+    # returns [128]; NeuralNetwork then replicates it to match num_layers.
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
-                        default=[128, 128, 64])
+                        default=[128, 128, 64],
+                        help="Neurons per hidden layer. Single value applies to all layers.")
 
     parser.add_argument("-a", "--activation", type=str, default="relu",
-                        choices=["sigmoid", "tanh", "relu"])
+                        choices=["sigmoid", "tanh", "relu"],
+                        help="Activation function for hidden layers")
 
     parser.add_argument("-l", "--loss", type=str, default="cross_entropy",
-                        choices=["mse", "mean_squared_error", "cross_entropy"])
+                        choices=["mse", "mean_squared_error", "cross_entropy"],
+                        help="Loss function")
 
     parser.add_argument("-w_i", "--weight_init", type=str, default="xavier",
-                        choices=["random", "xavier"])
+                        choices=["random", "xavier"],
+                        help="Weight initialisation method")
 
+    # Project name uses underscore to exactly match sweep.yaml
     parser.add_argument("-w_p", "--wandb_project", type=str,
-                        default="da6401-assignment1")
+                        default="da6401-assignment1",
+                        help="Weights & Biases project name (must match sweep.yaml)")
 
+    # --group is injected by the sweep yaml command block; must be accepted here
+    parser.add_argument("--group", type=str, default=None,
+                        help="W&B run group (set automatically by sweep agent)")
+
+    # Save paths default to src/ as required by the assignment
     parser.add_argument("--model_save_path", type=str,
-                        default="best_model.npy")
+                        default="src/best_model.npy",
+                        help="Where to save the best model weights (.npy)")
 
     parser.add_argument("--config_save_path", type=str,
-                        default="best_config.json")
+                        default="src/best_config.json",
+                        help="Where to save the best config (.json)")
 
     return parser.parse_args()
 
@@ -63,99 +98,190 @@ def main():
 
     args = parse_arguments()
 
+    # ------------------------------------------------------------------ #
+    #  Ensure the src/ directory exists before saving anything there      #
+    # ------------------------------------------------------------------ #
+    save_dir = os.path.dirname(args.model_save_path)
+    if save_dir and not os.path.exists(save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+
+    # ------------------------------------------------------------------ #
+    #  Initialise Weights & Biases run                                    #
+    #  group= organises sweep runs into named groups in the W&B UI        #
+    # ------------------------------------------------------------------ #
+    run = wandb.init(
+        project=args.wandb_project,
+        group=args.group,           # None for manual runs; set by sweep yaml
+        config={
+            "dataset":        args.dataset,
+            "epochs":         args.epochs,
+            "batch_size":     args.batch_size,
+            "learning_rate":  args.learning_rate,
+            "weight_decay":   args.weight_decay,
+            "optimizer":      args.optimizer,
+            "num_layers":     args.num_layers,
+            "hidden_size":    args.hidden_size,
+            "activation":     args.activation,
+            "loss":           args.loss,
+            "weight_init":    args.weight_init,
+        }
+    )
+
+    # After wandb.init, sweep may have overridden config values via wandb.config.
+    # Read them back so the model uses what wandb actually set.
+    cfg = wandb.config
+
+    # hidden_size from sweep is a single int → convert to list for NeuralNetwork
+    hidden_size = cfg.get("hidden_size", args.hidden_size)
+    if isinstance(hidden_size, int):
+        hidden_size = [hidden_size]
+    args.hidden_size = hidden_size
+
+    # Sync all other swept params back into args
+    args.dataset        = cfg.get("dataset",        args.dataset)
+    args.epochs         = cfg.get("epochs",         args.epochs)
+    args.batch_size     = cfg.get("batch_size",     args.batch_size)
+    args.learning_rate  = cfg.get("learning_rate",  args.learning_rate)
+    args.weight_decay   = cfg.get("weight_decay",   args.weight_decay)
+    args.optimizer      = cfg.get("optimizer",      args.optimizer)
+    args.num_layers     = cfg.get("num_layers",     args.num_layers)
+    args.activation     = cfg.get("activation",     args.activation)
+    args.loss           = cfg.get("loss",           args.loss)
+    args.weight_init    = cfg.get("weight_init",    args.weight_init)
+
     print("=" * 50)
     print("Training Configuration:")
-    print("Dataset:", args.dataset)
-    print("Epochs:", args.epochs)
-    print("Batch size:", args.batch_size)
-    print("Learning rate:", args.learning_rate)
-    print("Optimizer:", args.optimizer)
-    print("Architecture:", args.hidden_size)
+    print(f"  Dataset      : {args.dataset}")
+    print(f"  Epochs       : {args.epochs}")
+    print(f"  Batch size   : {args.batch_size}")
+    print(f"  Learning rate: {args.learning_rate}")
+    print(f"  Weight decay : {args.weight_decay}")
+    print(f"  Optimizer    : {args.optimizer}")
+    print(f"  Num layers   : {args.num_layers}")
+    print(f"  Architecture : {args.hidden_size}")
+    print(f"  Activation   : {args.activation}")
+    print(f"  Loss         : {args.loss}")
+    print(f"  Weight init  : {args.weight_init}")
+    print(f"  Group        : {args.group}")
     print("=" * 50)
 
-    # Load dataset
+    # ------------------------------------------------------------------ #
+    #  Load dataset                                                        #
+    # ------------------------------------------------------------------ #
     X_train, y_train, X_test, y_test = load_dataset(args.dataset)
+    X_train, y_train, X_val, y_val   = train_val_split(X_train, y_train, 0.1)
 
-    # Train/validation split
-    X_train, y_train, X_val, y_val = train_val_split(X_train, y_train, 0.1)
+    print(f"Training samples  : {X_train.shape[0]}")
+    print(f"Validation samples: {X_val.shape[0]}")
+    print(f"Test samples      : {X_test.shape[0]}")
 
-    print("Training samples:", X_train.shape[0])
-    print("Validation samples:", X_val.shape[0])
-    print("Test samples:", X_test.shape[0])
-
-    # Initialize model
+    # ------------------------------------------------------------------ #
+    #  Build model                                                         #
+    # ------------------------------------------------------------------ #
     model = NeuralNetwork(args)
 
-    best_val_f1 = 0
+    best_val_f1  = 0.0
     best_weights = None
 
-    from sklearn.metrics import f1_score
+    from sklearn.metrics import f1_score, precision_score, recall_score
 
     print("\nStarting training...\n")
 
     for epoch in range(args.epochs):
 
+        # ---------- training step ----------
         train_loss, train_acc = model.train_epoch(
             X_train, y_train, args.batch_size
         )
 
+        # ---------- validation step ----------
         val_loss, val_acc, val_preds = model.evaluate(X_val, y_val)
-
         val_targets = np.argmax(y_val, axis=1)
+        val_f1 = f1_score(val_targets, val_preds, average="weighted",
+                          zero_division=0)
 
-        val_f1 = f1_score(val_targets, val_preds, average="weighted")
+        # ---------- gradient norm of first hidden layer ----------
+        # Used for Section 2.4 (Vanishing Gradient) and 2.9 (Weight Init)
+        first_layer_grad_norm = (
+            float(np.linalg.norm(model.layers[0].grad_W))
+            if model.layers[0].grad_W is not None else 0.0
+        )
 
         print(
-            f"Epoch {epoch+1}/{args.epochs} "
-            f"Train Loss: {train_loss:.4f} "
-            f"Train Acc: {train_acc:.4f} "
-            f"Val Loss: {val_loss:.4f} "
-            f"Val Acc: {val_acc:.4f} "
+            f"Epoch {epoch+1:03d}/{args.epochs} | "
+            f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f} | "
+            f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f} | "
             f"Val F1: {val_f1:.4f}"
         )
 
+        # ---------- log every epoch to W&B ----------
+        wandb.log({
+            "epoch":             epoch + 1,
+            "train_loss":        train_loss,
+            "train_accuracy":    train_acc,
+            "val_loss":          val_loss,
+            "val_accuracy":      val_acc,
+            "val_f1":            val_f1,
+            "grad_norm_layer0":  first_layer_grad_norm,
+        })
+
+        # ---------- checkpoint best model ----------
         if val_f1 > best_val_f1:
-            best_val_f1 = val_f1
+            best_val_f1  = val_f1
             best_weights = model.get_weights()
+            print("  -> New best model saved!")
 
-            print("  -> New best model!")
-
+    # ------------------------------------------------------------------ #
+    #  Evaluate best model on held-out test set                           #
+    # ------------------------------------------------------------------ #
     print("\nEvaluating best model on test set...")
-
     model.set_weights(best_weights)
 
     test_loss, test_acc, test_preds = model.evaluate(X_test, y_test)
-
     test_targets = np.argmax(y_test, axis=1)
 
-    from sklearn.metrics import precision_score, recall_score
-
-    test_f1 = f1_score(test_targets, test_preds, average="weighted")
+    test_f1        = f1_score(test_targets, test_preds,
+                              average="weighted", zero_division=0)
     test_precision = precision_score(test_targets, test_preds,
-                                     average="weighted",
-                                     zero_division=0)
-    test_recall = recall_score(test_targets, test_preds,
-                               average="weighted",
-                               zero_division=0)
+                                     average="weighted", zero_division=0)
+    test_recall    = recall_score(test_targets, test_preds,
+                                  average="weighted", zero_division=0)
 
-    print("Test Accuracy:", test_acc)
-    print("Test F1:", test_f1)
-    print("Test Precision:", test_precision)
-    print("Test Recall:", test_recall)
+    print(f"Test Accuracy : {test_acc:.4f}")
+    print(f"Test F1       : {test_f1:.4f}")
+    print(f"Test Precision: {test_precision:.4f}")
+    print(f"Test Recall   : {test_recall:.4f}")
 
-    # Save model
-    np.save(args.model_save_path, best_weights)
-    print(f"Model saved to {args.model_save_path}")
+    # Log final test metrics to W&B summary
+    wandb.log({
+        "test_accuracy":  test_acc,
+        "test_f1":        test_f1,
+        "test_precision": test_precision,
+        "test_recall":    test_recall,
+    })
 
-    # Save config
-    config = vars(args)
-    config['test_f1'] = float(test_f1)
-    config['test_accuracy'] = float(test_acc)
+    # ------------------------------------------------------------------ #
+    #  Save model weights → src/best_model.npy                            #
+    #  Only save during normal (non-sweep) runs to avoid overwriting the  #
+    #  best model with a worse sweep candidate.                            #
+    # ------------------------------------------------------------------ #
+    if args.group is None:
+        np.save(args.model_save_path, best_weights)
+        print(f"\nModel saved  -> {args.model_save_path}")
 
-    with open(args.config_save_path, "w") as f:
-        json.dump(config, f, indent=2)
+        config = vars(args).copy()
+        config["test_f1"]       = float(test_f1)
+        config["test_accuracy"] = float(test_acc)
 
-    print("Training complete!")
+        with open(args.config_save_path, "w") as f:
+            json.dump(config, f, indent=2)
+
+        print(f"Config saved -> {args.config_save_path}")
+    else:
+        print("\n[Sweep run] Skipping model/config save to preserve best manual run.")
+
+    wandb.finish()
+    print("\nTraining complete!")
 
 
 if __name__ == "__main__":

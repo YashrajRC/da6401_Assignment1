@@ -1,0 +1,84 @@
+_wandb:
+    value:
+        cli_version: 0.25.0
+        e:
+            okpc9noeq7xz5sjrr4bkbmu4d694z46q:
+                args:
+                    - --group
+                    - 2_hyperparameter_sweep
+                    - --activation=tanh
+                    - --batch_size=64
+                    - --dataset=mnist
+                    - --epochs=8
+                    - --hidden_size=128
+                    - --learning_rate=0.0001
+                    - --loss=cross_entropy
+                    - --num_layers=2
+                    - --optimizer=nag
+                    - --weight_decay=0.001
+                    - --weight_init=random
+                codePath: src/train.py
+                codePathLocal: src/train.py
+                cpu_count: 6
+                cpu_count_logical: 12
+                disk:
+                    /:
+                        total: "1081101176832"
+                        used: "8243560448"
+                email: da25m031@smail.iitm.ac.in
+                executable: /home/chava/da6401_assignment1/.venv/bin/python3
+                git:
+                    commit: 07f46cda842f0833a576b7427e83d0bd8ff4a415
+                    remote: git@github.com:YashrajRC/da6401_Assignment1.git
+                host: Yashraj
+                memory:
+                    total: "8138207232"
+                os: Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39
+                program: /home/chava/da6401_assignment1/src/train.py
+                python: CPython 3.12.3
+                root: /home/chava/da6401_assignment1
+                startedAt: "2026-03-06T16:39:23.503500Z"
+                writerId: okpc9noeq7xz5sjrr4bkbmu4d694z46q
+        m: []
+        python_version: 3.12.3
+        t:
+            "1":
+                - 2
+                - 3
+                - 5
+                - 53
+            "2":
+                - 2
+                - 3
+                - 5
+                - 53
+            "3":
+                - 2
+                - 14
+                - 16
+            "4": 3.12.3
+            "5": 0.25.0
+            "12": 0.25.0
+            "13": linux-x86_64
+activation:
+    value: tanh
+batch_size:
+    value: 64
+dataset:
+    value: mnist
+epochs:
+    value: 8
+hidden_size:
+    value: 128
+learning_rate:
+    value: 0.0001
+loss:
+    value: cross_entropy
+num_layers:
+    value: 2
+optimizer:
+    value: nag
+weight_decay:
+    value: 0.001
+weight_init:
+    value: random

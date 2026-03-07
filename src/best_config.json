@@ -15,8 +15,8 @@
   "loss": "cross_entropy",
   "weight_init": "xavier",
   "wandb_project": "da6401-assignment1",
-  "model_save_path": "best_model.npy",
-  "config_save_path": "best_config.json",
-  "test_f1": 0.9763134684429111,
-  "test_accuracy": 0.9763
+  "model_save_path": "src/best_model.npy",
+  "config_save_path": "src/best_config.json",
+  "test_f1": 0.9776019682523047,
+  "test_accuracy": 0.9776
 }
