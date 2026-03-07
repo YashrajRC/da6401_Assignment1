@@ -1,3 +1,4 @@
+
 import argparse
 import numpy as np
 import json
@@ -17,19 +18,19 @@ def parse_arguments():
                         choices=["mnist", "fashion_mnist"],
                         help="Dataset to use")
 
-    parser.add_argument("-e", "--epochs", type=int, default=10,
+    parser.add_argument("-e", "--epochs", type=int, default=30,
                         help="Number of training epochs")
 
     parser.add_argument("-b", "--batch_size", type=int, default=32,
                         help="Mini-batch size")
 
-    parser.add_argument("-lr", "--learning_rate", type=float, default=0.1,
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.001,
                         help="Initial learning rate")
 
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0,
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001,
                         help="L2 weight decay coefficient")
 
-    parser.add_argument("-o", "--optimizer", type=str, default="sgd",
+    parser.add_argument("-o", "--optimizer", type=str, default="rmsprop",
                         choices=["sgd", "momentum", "nag", "rmsprop"],
                         help="Optimizer")
 
@@ -37,7 +38,7 @@ def parse_arguments():
                         help="Number of hidden layers")
 
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
-                        default= 128,
+                        default=[128, 128, 64],
                         help="Neurons per hidden layer. Single value applies to all layers.")
 
     parser.add_argument("-a", "--activation", type=str, default="relu",
@@ -59,6 +60,9 @@ def parse_arguments():
     parser.add_argument("--group", type=str, default=None,
                         help="W&B run group (set automatically by sweep agent)")
 
+    parser.add_argument("--name", type=str, default=None,
+                        help="W&B run name (auto-generated from config if not set)")
+
     parser.add_argument("--model_save_path", type=str,
                         default="src/best_model.npy",
                         help="Where to save the best model weights (.npy)")
@@ -78,9 +82,51 @@ def main():
     if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
+    if args.name is None:
+        g = args.group or ""
+
+        if "optimizer-showdown" in g:
+            run_name = f"optim_{args.optimizer}"
+
+        elif "vanishing-grad" in g:
+            run_name = f"grad_{args.activation}_depth{args.num_layers}"
+
+        elif "dead-neurons" in g:
+            lr_tag = "highlr" if args.learning_rate >= 0.05 else "lowlr"
+            run_name = f"dead_{args.activation}_{lr_tag}"
+
+        elif "loss-comparison" in g:
+            loss_short = {"cross_entropy": "crossentropy",
+                          "mean_squared_error": "mse",
+                          "mse": "mse"}.get(args.loss, args.loss)
+            run_name = f"loss_{loss_short}"
+
+        elif "weight-init" in g:
+            run_name = f"init_{args.weight_init}"
+
+        elif "fashion-mnist" in g:
+            run_name = f"fashion_{args.optimizer}_{args.activation}_nl{args.num_layers}"
+
+        else:
+            sz_str = "-".join(str(s) for s in args.hidden_size)
+            loss_short = {"cross_entropy": "ce",
+                          "mean_squared_error": "mse"}.get(args.loss, args.loss)
+            run_name = (
+                f"{args.optimizer}"
+                f"_lr{args.learning_rate}"
+                f"_{args.activation}"
+                f"_{args.weight_init}"
+                f"_loss{loss_short}"
+                f"_sz{sz_str}"
+                f"_nl{args.num_layers}"
+            )
+    else:
+        run_name = args.name
+
     run = wandb.init(
         project=args.wandb_project,
-        group=args.group,           
+        name=run_name,
+        group=args.group,         
         config={
             "dataset":        args.dataset,
             "epochs":         args.epochs,
@@ -96,16 +142,13 @@ def main():
         }
     )
 
-
+  
     cfg = wandb.config
 
-    # hidden_size from sweep is a single int → convert to list for NeuralNetwork
     hidden_size = cfg.get("hidden_size", args.hidden_size)
     if isinstance(hidden_size, int):
         hidden_size = [hidden_size]
     args.hidden_size = hidden_size
-
-    # Sync all other swept params back into args
     args.dataset        = cfg.get("dataset",        args.dataset)
     args.epochs         = cfg.get("epochs",         args.epochs)
     args.batch_size     = cfg.get("batch_size",     args.batch_size)
@@ -131,6 +174,7 @@ def main():
     print(f"  Loss         : {args.loss}")
     print(f"  Weight init  : {args.weight_init}")
     print(f"  Group        : {args.group}")
+    print(f"  Run name     : {run_name}")
     print("=" * 50)
 
     X_train, y_train, X_test, y_test = load_dataset(args.dataset)
@@ -139,7 +183,6 @@ def main():
     print(f"Training samples  : {X_train.shape[0]}")
     print(f"Validation samples: {X_val.shape[0]}")
     print(f"Test samples      : {X_test.shape[0]}")
-
 
     model = NeuralNetwork(args)
 
@@ -161,10 +204,13 @@ def main():
         val_f1 = f1_score(val_targets, val_preds, average="weighted",
                           zero_division=0)
 
-        first_layer_grad_norm = (
-            float(np.linalg.norm(model.layers[0].grad_W))
-            if model.layers[0].grad_W is not None else 0.0
-        )
+        layer_grad_log = {}
+        for layer_idx, layer in enumerate(model.layers):
+            if layer.grad_W is not None:
+                norm = float(np.linalg.norm(layer.grad_W))
+            else:
+                norm = 0.0
+            layer_grad_log[f"grad_norm_layer_{layer_idx}"] = norm
 
         print(
             f"Epoch {epoch+1:03d}/{args.epochs} | "
@@ -173,21 +219,21 @@ def main():
             f"Val F1: {val_f1:.4f}"
         )
 
-        wandb.log({
-            "epoch":             epoch + 1,
-            "train_loss":        train_loss,
-            "train_accuracy":    train_acc,
-            "val_loss":          val_loss,
-            "val_accuracy":      val_acc,
-            "val_f1":            val_f1,
-            "grad_norm_layer0":  first_layer_grad_norm,
-        })
+        log_dict = {
+            "epoch":          epoch + 1,
+            "train_loss":     train_loss,
+            "train_accuracy": train_acc,
+            "val_loss":       val_loss,
+            "val_accuracy":   val_acc,
+            "val_f1":         val_f1,
+        }
+        log_dict.update(layer_grad_log)   
+        wandb.log(log_dict)
 
         if val_f1 > best_val_f1:
             best_val_f1  = val_f1
             best_weights = model.get_weights()
             print("  -> New best model saved!")
-
 
     print("\nEvaluating best model on test set...")
     model.set_weights(best_weights)
