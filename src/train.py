@@ -358,9 +358,26 @@ def main():
         np.save(args.model_save_path, save_dict)
         print(f"\nModel saved  -> {args.model_save_path}")
 
-        config = vars(args).copy()
-        config["test_f1"]       = float(test_f1)
-        config["test_accuracy"] = float(test_acc)
+        # Build config with clean relative paths — no absolute paths that would
+        # break on Gradescope or any other machine.
+        config = {
+            "dataset":          args.dataset,
+            "epochs":           args.epochs,
+            "batch_size":       args.batch_size,
+            "learning_rate":    args.learning_rate,
+            "weight_decay":     args.weight_decay,
+            "optimizer":        args.optimizer,
+            "num_layers":       args.num_layers,
+            "hidden_size":      list(args.hidden_size),
+            "activation":       args.activation,
+            "loss":             args.loss,
+            "weight_init":      args.weight_init,
+            "model_save_path":  "best_model.npy",    # always relative, never absolute
+            "test_f1":          float(test_f1),
+            "test_accuracy":    float(test_acc),
+            "test_precision":   float(test_precision),
+            "test_recall":      float(test_recall),
+        }
 
         with open(args.config_save_path, "w") as f:
             json.dump(config, f, indent=2)

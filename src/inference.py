@@ -148,14 +148,30 @@ def main():
     _, _, X_test, y_test = load_dataset(args.dataset)
 
     # ------------------------------------------------------------------ #
-    #  Resolve model path: try the given path first; if it doesn't exist, #
-    #  also try next to this script file (handles autograder path issues)  #
+    #  Resolve model path robustly — try multiple locations so the model  #
+    #  is found regardless of how/where the autograder runs this script.  #
     # ------------------------------------------------------------------ #
-    model_path = args.model_path
-    if not os.path.isfile(model_path):
-        # fallback: look for best_model.npy next to inference.py itself
-        _here = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(_here, "best_model.npy")
+    _here = os.path.dirname(os.path.abspath(__file__))   # always = src/
+
+    candidates = [
+        args.model_path,                                  # whatever was passed / default
+        os.path.join(_here, "best_model.npy"),            # next to inference.py in src/
+        os.path.join(_here, "..", "best_model.npy"),      # one level up (project root)
+        "best_model.npy",                                 # cwd fallback
+        "src/best_model.npy",                             # from project root
+    ]
+
+    model_path = None
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            model_path = candidate
+            break
+
+    if model_path is None:
+        raise FileNotFoundError(
+            f"best_model.npy not found. Tried:\n" +
+            "\n".join(f"  {c}" for c in candidates)
+        )
 
     print(f"Loading weights from {model_path} ...")
     weights, arch = load_model(model_path)
