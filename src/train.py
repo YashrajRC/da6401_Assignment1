@@ -23,24 +23,24 @@ def parse_arguments():
     parser.add_argument("-b", "--batch_size", type=int, default=32,
                         help="Mini-batch size")
 
-    parser.add_argument("-lr", "--learning_rate", type=float, default=0.01,
+    parser.add_argument("-lr", "--learning_rate", type=float, default=0.1,
                         help="Initial learning rate")
 
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001,
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0,
                         help="L2 weight decay coefficient")
 
-    parser.add_argument("-o", "--optimizer", type=str, default="nag",
+    parser.add_argument("-o", "--optimizer", type=str, default="sgd",
                         choices=["sgd", "momentum", "nag", "rmsprop"],
                         help="Optimizer")
 
-    parser.add_argument("-nhl", "--num_layers", type=int, default=2,
+    parser.add_argument("-nhl", "--num_layers", type=int, default=3,
                         help="Number of hidden layers")
 
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
                         default= 128,
                         help="Neurons per hidden layer. Single value applies to all layers.")
 
-    parser.add_argument("-a", "--activation", type=str, default="tanh",
+    parser.add_argument("-a", "--activation", type=str, default="relu",
                         choices=["sigmoid", "tanh", "relu"],
                         help="Activation function for hidden layers")
 

@@ -2,20 +2,20 @@
   "dataset": "mnist",
   "epochs": 10,
   "batch_size": 32,
-  "learning_rate": 0.01,
-  "weight_decay": 0.0001,
-  "optimizer": "nag",
-  "num_layers": 2,
+  "learning_rate": 0.1,
+  "weight_decay": 0,
+  "optimizer": "sgd",
+  "num_layers": 3,
   "hidden_size": [
     128
   ],
-  "activation": "tanh",
+  "activation": "relu",
   "loss": "cross_entropy",
   "weight_init": "xavier",
   "wandb_project": "da6401-assignment1",
   "group": null,
   "model_save_path": "src/best_model.npy",
   "config_save_path": "src/best_config.json",
-  "test_f1": 0.9784864826050104,
-  "test_accuracy": 0.9785
+  "test_f1": 0.9781957512501743,
+  "test_accuracy": 0.9782
 }
