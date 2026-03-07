@@ -58,7 +58,7 @@ def parse_arguments():
     # When the sweep passes a single int (e.g. --hidden_size 128), argparse
     # returns [128]; NeuralNetwork then replicates it to match num_layers.
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
-                        default=[128, 128, 64],
+                        default=[128, 128, 128],
                         help="Neurons per hidden layer. Single value applies to all layers.")
 
     parser.add_argument("-a", "--activation", type=str, default="relu",
