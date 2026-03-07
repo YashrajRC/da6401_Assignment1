@@ -1,25 +1,8 @@
-"""
-Loss Functions Module
-Implements MSE and Cross-Entropy losses
-"""
-
 import numpy as np
 
 
 def to_one_hot(y, num_classes):
-    """
-    Convert integer class labels to one-hot encoding.
-    If y is already one-hot (2D with shape[1] == num_classes), return as-is.
-
-    Args:
-        y: Integer label array of shape (N,) or (N,1), OR already one-hot (N, C)
-        num_classes: Number of classes
-
-    Returns:
-        One-hot encoded array of shape (N, num_classes)
-    """
     if y.ndim == 2 and y.shape[1] == num_classes:
-        # Already one-hot encoded — pass through unchanged
         return y
     # Integer labels: shape (N,) or (N, 1)
     y_int = y.flatten().astype(int)
@@ -46,11 +29,6 @@ class MeanSquaredError(LossFunction):
         return np.mean((y_pred - y_true) ** 2)
 
     def compute_gradient(self, y_pred, y_true):
-        """
-        Gradient of MSE w.r.t. predictions.
-        Since loss is averaged, gradient is also averaged.
-        Handles both integer labels and one-hot encoded labels.
-        """
         num_classes = y_pred.shape[1]
         y_true = to_one_hot(y_true, num_classes)
         batch_size = y_pred.shape[0]
@@ -82,11 +60,6 @@ class CrossEntropyLoss(LossFunction):
         return loss
 
     def compute_gradient(self, logits, y_true):
-        """
-        Gradient of averaged cross-entropy loss w.r.t. logits.
-        Since loss = -sum(y * log(probs)) / N, gradient = (probs - y) / N.
-        Handles both integer labels and one-hot encoded labels.
-        """
         num_classes = logits.shape[1]
         y_true = to_one_hot(y_true, num_classes)
 

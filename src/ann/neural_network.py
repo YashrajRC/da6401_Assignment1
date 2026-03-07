@@ -1,8 +1,3 @@
-"""
-Main Neural Network Model class
-Handles forward and backward propagation loops
-"""
-
 import numpy as np
 from .neural_layer import NeuralLayer
 from .objective_functions import get_loss_function
@@ -28,16 +23,13 @@ class NeuralNetwork:
         
         # Validate hidden layer configuration
         if len(self.hidden_sizes) != self.num_layers:
-            # Flexible handling: adjust to match num_layers
             if len(self.hidden_sizes) < self.num_layers:
-                # Repeat last size if not enough
                 if len(self.hidden_sizes) > 0:
                     last_size = self.hidden_sizes[-1]
                     self.hidden_sizes = self.hidden_sizes + [last_size] * (self.num_layers - len(self.hidden_sizes))
                 else:
                     self.hidden_sizes = [128] * self.num_layers
             else:
-                # Truncate if too many
                 self.hidden_sizes = self.hidden_sizes[:self.num_layers]
 
         self.activation = getattr(cli_args, "activation", "relu")

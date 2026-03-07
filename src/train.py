@@ -1,16 +1,3 @@
-"""
-Main Training Script
-Entry point for training neural networks with command-line arguments.
-Logs all metrics to Weights & Biases (wandb) each epoch.
-Saves best_model.npy and best_config.json into the src/ folder.
-
-Compatible with wandb sweep agents:
-  - --group  is accepted (used by sweep yaml command block)
-  - --hidden_size can be a single int (e.g. 128) or a list (128 128 64);
-    a single int is automatically expanded to [int] * num_layers by NeuralNetwork.
-  - project name matches sweep.yaml exactly: da6401_assignment1 (underscore)
-"""
-
 import argparse
 import numpy as np
 import json
@@ -23,11 +10,6 @@ from utils.data_loader import load_dataset, train_val_split
 
 
 def parse_arguments():
-    """
-    Parse command-line arguments.
-    Default values reflect the best-performing configuration found during sweeps.
-    Both train.py and inference.py share the same CLI arguments per assignment spec.
-    """
 
     parser = argparse.ArgumentParser(description="Train MLP on MNIST / Fashion-MNIST")
 
@@ -54,9 +36,6 @@ def parse_arguments():
     parser.add_argument("-nhl", "--num_layers", type=int, default=3,
                         help="Number of hidden layers")
 
-    # nargs="+" accepts both "128 128 64" (list) and "128" (single int).
-    # When the sweep passes a single int (e.g. --hidden_size 128), argparse
-    # returns [128]; NeuralNetwork then replicates it to match num_layers.
     parser.add_argument("-sz", "--hidden_size", type=int, nargs="+",
                         default=[128, 128, 64],
                         help="Neurons per hidden layer. Single value applies to all layers.")
@@ -73,16 +52,13 @@ def parse_arguments():
                         choices=["random", "xavier"],
                         help="Weight initialisation method")
 
-    # Project name uses underscore to exactly match sweep.yaml
     parser.add_argument("-w_p", "--wandb_project", type=str,
                         default="da6401-assignment1",
                         help="Weights & Biases project name (must match sweep.yaml)")
 
-    # --group is injected by the sweep yaml command block; must be accepted here
     parser.add_argument("--group", type=str, default=None,
                         help="W&B run group (set automatically by sweep agent)")
 
-    # Save paths default to src/ as required by the assignment
     parser.add_argument("--model_save_path", type=str,
                         default="src/best_model.npy",
                         help="Where to save the best model weights (.npy)")
@@ -98,20 +74,13 @@ def main():
 
     args = parse_arguments()
 
-    # ------------------------------------------------------------------ #
-    #  Ensure the src/ directory exists before saving anything there      #
-    # ------------------------------------------------------------------ #
     save_dir = os.path.dirname(args.model_save_path)
     if save_dir and not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
-    # ------------------------------------------------------------------ #
-    #  Initialise Weights & Biases run                                    #
-    #  group= organises sweep runs into named groups in the W&B UI        #
-    # ------------------------------------------------------------------ #
     run = wandb.init(
         project=args.wandb_project,
-        group=args.group,           # None for manual runs; set by sweep yaml
+        group=args.group,           
         config={
             "dataset":        args.dataset,
             "epochs":         args.epochs,
@@ -127,8 +96,7 @@ def main():
         }
     )
 
-    # After wandb.init, sweep may have overridden config values via wandb.config.
-    # Read them back so the model uses what wandb actually set.
+
     cfg = wandb.config
 
     # hidden_size from sweep is a single int → convert to list for NeuralNetwork
@@ -165,9 +133,6 @@ def main():
     print(f"  Group        : {args.group}")
     print("=" * 50)
 
-    # ------------------------------------------------------------------ #
-    #  Load dataset                                                        #
-    # ------------------------------------------------------------------ #
     X_train, y_train, X_test, y_test = load_dataset(args.dataset)
     X_train, y_train, X_val, y_val   = train_val_split(X_train, y_train, 0.1)
 
@@ -175,9 +140,7 @@ def main():
     print(f"Validation samples: {X_val.shape[0]}")
     print(f"Test samples      : {X_test.shape[0]}")
 
-    # ------------------------------------------------------------------ #
-    #  Build model                                                         #
-    # ------------------------------------------------------------------ #
+
     model = NeuralNetwork(args)
 
     best_val_f1  = 0.0
@@ -189,19 +152,15 @@ def main():
 
     for epoch in range(args.epochs):
 
-        # ---------- training step ----------
         train_loss, train_acc = model.train_epoch(
             X_train, y_train, args.batch_size
         )
 
-        # ---------- validation step ----------
         val_loss, val_acc, val_preds = model.evaluate(X_val, y_val)
         val_targets = np.argmax(y_val, axis=1)
         val_f1 = f1_score(val_targets, val_preds, average="weighted",
                           zero_division=0)
 
-        # ---------- gradient norm of first hidden layer ----------
-        # Used for Section 2.4 (Vanishing Gradient) and 2.9 (Weight Init)
         first_layer_grad_norm = (
             float(np.linalg.norm(model.layers[0].grad_W))
             if model.layers[0].grad_W is not None else 0.0
@@ -214,7 +173,6 @@ def main():
             f"Val F1: {val_f1:.4f}"
         )
 
-        # ---------- log every epoch to W&B ----------
         wandb.log({
             "epoch":             epoch + 1,
             "train_loss":        train_loss,
@@ -225,15 +183,12 @@ def main():
             "grad_norm_layer0":  first_layer_grad_norm,
         })
 
-        # ---------- checkpoint best model ----------
         if val_f1 > best_val_f1:
             best_val_f1  = val_f1
             best_weights = model.get_weights()
             print("  -> New best model saved!")
 
-    # ------------------------------------------------------------------ #
-    #  Evaluate best model on held-out test set                           #
-    # ------------------------------------------------------------------ #
+
     print("\nEvaluating best model on test set...")
     model.set_weights(best_weights)
 
@@ -260,11 +215,6 @@ def main():
         "test_recall":    test_recall,
     })
 
-    # ------------------------------------------------------------------ #
-    #  Save model weights → src/best_model.npy                            #
-    #  Only save during normal (non-sweep) runs to avoid overwriting the  #
-    #  best model with a worse sweep candidate.                            #
-    # ------------------------------------------------------------------ #
     if args.group is None:
         np.save(args.model_save_path, best_weights)
         print(f"\nModel saved  -> {args.model_save_path}")

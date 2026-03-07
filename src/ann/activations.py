@@ -1,7 +1,3 @@
-"""
-Activation Functions Module
-Implements sigmoid, tanh, and relu activations
-"""
 import numpy as np
 
 
@@ -49,7 +45,6 @@ class ReLU(Activation):
 
 
 def get_activation(name):
-    """Factory function to get activation by name"""
     activations = {
         'sigmoid': Sigmoid(),
         'tanh': Tanh(),

@@ -1,7 +1,3 @@
-"""
-Optimizer Module
-Implements SGD, Momentum, NAG, and RMSProp optimizers
-"""
 import numpy as np
 
 
@@ -13,7 +9,6 @@ class Optimizer:
         self.state = {}
     
     def update(self, layers):
-        """Update weights for all layers"""
         raise NotImplementedError
 
 
@@ -24,7 +19,6 @@ class SGD(Optimizer):
         super().__init__(learning_rate)
     
     def update(self, layers):
-        """Simple gradient descent update"""
         for layer in layers:
             if layer.grad_W is not None:
                 layer.W -= self.learning_rate * layer.grad_W
@@ -39,7 +33,6 @@ class Momentum(Optimizer):
         self.beta = beta
     
     def update(self, layers):
-        """Update with momentum"""
         for i, layer in enumerate(layers):
             if layer.grad_W is not None:
                 # Initialize velocity if first time
@@ -66,7 +59,6 @@ class NAG(Optimizer):
         self.beta = beta
     
     def update(self, layers):
-        """Update with Nesterov momentum"""
         for i, layer in enumerate(layers):
             if layer.grad_W is not None:
                 # Initialize velocity if first time
@@ -98,17 +90,14 @@ class RMSProp(Optimizer):
         self.epsilon = epsilon
     
     def update(self, layers):
-        """Update with RMSProp"""
         for i, layer in enumerate(layers):
             if layer.grad_W is not None:
-                # Initialize cache if first time
                 if i not in self.state:
                     self.state[i] = {
                         's_W': np.zeros_like(layer.W),
                         's_b': np.zeros_like(layer.b)
                     }
-                
-                # Update cache (moving average of squared gradients)
+          
                 self.state[i]['s_W'] = self.beta * self.state[i]['s_W'] + (1 - self.beta) * (layer.grad_W ** 2)
                 self.state[i]['s_b'] = self.beta * self.state[i]['s_b'] + (1 - self.beta) * (layer.grad_b ** 2)
                 

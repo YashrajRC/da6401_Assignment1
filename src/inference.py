@@ -1,9 +1,3 @@
-"""
-Inference Script
-Used by the autograder to load the saved model and compute metrics on the test set.
-CLI arguments are identical to train.py — defaults must match the best trained model.
-"""
-
 import argparse
 import numpy as np
 
@@ -14,14 +8,9 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 
 
 def parse_arguments():
-    """
-    Parse command-line arguments for inference.
-    All arguments and defaults are kept identical to train.py per assignment spec.
-    """
 
     parser = argparse.ArgumentParser(description="Run inference on test set")
 
-    # Model path — points into src/ by default, matching where train.py saves
     parser.add_argument("--model_path", type=str,
                         default="src/best_model.npy",
                         help="Path to saved model weights (.npy)")
@@ -77,31 +66,13 @@ def parse_arguments():
 
 
 def load_model(model_path):
-    """
-    Load trained model weights from a .npy file saved with np.save().
 
-    Args:
-        model_path (str): Path to the .npy weights file.
-
-    Returns:
-        dict: Weight dictionary with keys W0, b0, W1, b1, …
-    """
     data = np.load(model_path, allow_pickle=True).item()
     return data
 
 
 def evaluate_model(model, X_test, y_test):
-    """
-    Run a forward pass and compute classification metrics.
-
-    Args:
-        model: Initialised NeuralNetwork with weights already loaded.
-        X_test (np.ndarray): Test features, shape (N, 784).
-        y_test (np.ndarray): One-hot test labels, shape (N, 10).
-
-    Returns:
-        dict: accuracy, f1, precision, recall, and raw logits.
-    """
+ 
     logits  = model.forward(X_test)
     preds   = np.argmax(logits, axis=1)
     targets = np.argmax(y_test, axis=1)
@@ -121,11 +92,6 @@ def evaluate_model(model, X_test, y_test):
 
 
 def main():
-    """
-    Main inference entry point.
-    Loads the dataset, reconstructs the model architecture, loads saved weights,
-    and prints Accuracy / F1 / Precision / Recall.
-    """
 
     args = parse_arguments()
 

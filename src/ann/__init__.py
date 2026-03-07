@@ -1,7 +1,3 @@
-"""
-ANN Package - Artificial Neural Network Components
-"""
-
 from .activations import Sigmoid, Tanh, ReLU, get_activation
 from .neural_layer import NeuralLayer
 from .neural_network import NeuralNetwork

@@ -1,21 +1,8 @@
-"""
-Data Loading Module
-Handles loading and preprocessing of MNIST and Fashion-MNIST datasets
-"""
 import numpy as np
 from keras.datasets import mnist, fashion_mnist
 
 
 def load_dataset(dataset_name='mnist'):
-    """
-    Load MNIST or Fashion-MNIST dataset
-    
-    Args:
-        dataset_name: 'mnist' or 'fashion_mnist'
-        
-    Returns:
-        X_train, y_train, X_test, y_test
-    """
     if dataset_name == 'mnist':
         (X_train, y_train), (X_test, y_test) = mnist.load_data()
     elif dataset_name == 'fashion_mnist':
@@ -39,16 +26,6 @@ def load_dataset(dataset_name='mnist'):
 
 
 def one_hot_encode(y, num_classes=10):
-    """
-    Convert labels to one-hot encoding
-    
-    Args:
-        y: Labels array
-        num_classes: Number of classes
-        
-    Returns:
-        One-hot encoded array
-    """
     n = y.shape[0]
     one_hot = np.zeros((n, num_classes))
     one_hot[np.arange(n), y] = 1
@@ -56,17 +33,6 @@ def one_hot_encode(y, num_classes=10):
 
 
 def train_val_split(X, y, val_ratio=0.1):
-    """
-    Split training data into train and validation sets
-    
-    Args:
-        X: Features
-        y: Labels
-        val_ratio: Fraction of data for validation
-        
-    Returns:
-        X_train, y_train, X_val, y_val
-    """
     num_samples = X.shape[0]
     num_val = int(num_samples * val_ratio)
     

@@ -1,8 +1,3 @@
-"""
-Neural Layer Module
-Implements a single fully-connected layer
-"""
-
 import numpy as np
 from .activations import get_activation
 

@@ -1,13 +1,3 @@
-# sweep.yaml
-# Run from the PROJECT ROOT (one level above src/) with:
-#
-#   source .venv/bin/activate
-#   wandb sweep sweep.yaml
-#   wandb agent <USERNAME>/da6401_assignment1/<SWEEP_ID>
-#
-# The sweep uses random search for 100+ runs.
-# hidden_size is a single integer; NeuralNetwork expands it to
-# [hidden_size] * num_layers automatically.
 
 project: da6401-assignment1
 program: src/train.py
