@@ -35,7 +35,7 @@ src/
 
 ## Setup
 ```bash
-pip install numpy scikit-learn wandb
+pip install -r requirements.txt
 ```
 
 ## Train
